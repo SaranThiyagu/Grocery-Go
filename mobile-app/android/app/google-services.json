@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "251681154121",
+    "project_id": "taskme-app-fd065",
+    "storage_bucket": "taskme-app-fd065.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:251681154121:android:74b6dce38fe3ee78eb4b98",
+        "android_client_info": {
+          "package_name": "com.demo.loginapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0uqWzJuw9GJiK9oweWveBiz5WtWyVlhI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
