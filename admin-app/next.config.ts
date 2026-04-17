@@ -7,6 +7,22 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+    ],
+  },
   // Fix cross-origin warning for preview
   allowedDevOrigins: ["preview-chat-763ff83d-2f03-48cf-b7a3-e8581cf3733c.space.z.ai"],
   eslint: {

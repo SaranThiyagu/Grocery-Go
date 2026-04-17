@@ -51,18 +51,18 @@ export async function sendOrderCompletionEmail(orderData: OrderEmailData) {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Order Completed</title>
+          <title>Order Delivered</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(to right, #6366f1, #f59e0b); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Order Completed! 🎉</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Order Delivered! 🎉</h1>
           </div>
           
           <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
             <p style="font-size: 16px; margin-bottom: 20px;">Dear ${orderData.customerName},</p>
             
             <p style="font-size: 16px; margin-bottom: 20px;">
-              Great news! Your order <strong>#${orderData.orderId}</strong> has been completed and is ready for delivery.
+              Great news! Your order <strong>#${orderData.orderId}</strong> has been delivered.
             </p>
             
             <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -105,7 +105,7 @@ export async function sendOrderCompletionEmail(orderData: OrderEmailData) {
         const mailOptions = {
             from: `"OrderFlow" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
             to: orderData.customerEmail,
-            subject: `Order #${orderData.orderId} Completed - OrderFlow`,
+            subject: `Order #${orderData.orderId} Delivered - OrderFlow`,
             html: emailHtml,
         };
 

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "OrderFlow Admin - Customer Order Management",
-  description: "Professional admin panel for managing customer orders, products, and users. Built with Next.js and Firebase.",
-  keywords: ["OrderFlow", "Admin Panel", "Order Management", "Next.js", "TypeScript", "Tailwind CSS", "Firebase"],
+  description: "Professional admin panel for managing customer orders, products, and users. Built with Next.js and Supabase.",
+  keywords: ["OrderFlow", "Admin Panel", "Order Management", "Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
   authors: [{ name: "OrderFlow Team" }],
   icons: {
     icon: "/icon-192x192.png",
@@ -54,6 +54,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        suppressHydrationWarning
       >
         {children}
         <Toaster />
