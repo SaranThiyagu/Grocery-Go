@@ -13,7 +13,9 @@ export async function GET() {
             .from('products')
             .select(`
                 *,
-                categories ( id, name )
+                categories ( id, name ),
+                brands ( id, name ),
+                product_sizes ( id, size_label, type )
             `)
             .order('created_at', { ascending: false });
 
@@ -26,18 +28,26 @@ export async function GET() {
         }
 
         // Transform the data to include proper image paths
-        const transformedProducts = (products || []).map(product => ({
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            image: product.image,
-            category: (product.categories as any)?.name || null,
-            categoryId: (product.categories as any)?.id || null,
-            isActive: product.is_active ?? true,
-            createdAt: product.created_at,
-            updatedAt: product.updated_at,
-        }));
+        const transformedProducts = (products || []).map(product => {
+            const sizes = (product.product_sizes as any[]) || [];
+            return {
+                id: product.id,
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                image: product.image,
+                category: (product.categories as any)?.name || null,
+                categoryId: (product.categories as any)?.id || null,
+                brand: (product.brands as any)?.name || null,
+                brandId: (product.brands as any)?.id || null,
+                sellingMode: product.selling_mode || 'both',
+                retailSizes: sizes.filter((s: any) => s.type === 'retail').map((s: any) => s.size_label),
+                wholesaleSizes: sizes.filter((s: any) => s.type === 'wholesale').map((s: any) => s.size_label),
+                isActive: product.is_active ?? true,
+                createdAt: product.created_at,
+                updatedAt: product.updated_at,
+            };
+        });
 
         return NextResponse.json(transformedProducts);
     } catch (error) {
@@ -55,19 +65,28 @@ export async function POST(request: Request) {
         if (!user) return unauthorizedResponse();
 
         const body = await request.json();
-        const { name, description, price, image, category_id, is_active } = body;
+        const { name, description, price, image, category_id, is_active, brand_id, selling_mode, sizes } = body;
 
         // Validation
-        if (!name || !price) {
+        if (!name) {
             return NextResponse.json(
-                { error: 'Name and price are required' },
+                { error: 'Name is required' },
                 { status: 400 }
             );
         }
 
-        if (typeof price !== 'number' || price <= 0) {
+        if (price !== undefined && price !== null && (typeof price !== 'number' || price < 0)) {
             return NextResponse.json(
-                { error: 'Price must be a positive number' },
+                { error: 'Price must be a non-negative number' },
+                { status: 400 }
+            );
+        }
+
+        // Validate selling_mode
+        const validSellingModes = ['retail', 'wholesale', 'both'];
+        if (selling_mode && !validSellingModes.includes(selling_mode)) {
+            return NextResponse.json(
+                { error: 'Invalid selling mode' },
                 { status: 400 }
             );
         }
@@ -94,20 +113,24 @@ export async function POST(request: Request) {
         }
 
         // Create product
+        const productId = crypto.randomUUID();
         const { data: product, error } = await supabaseAdmin
             .from('products')
             .insert({
-                id: crypto.randomUUID(),
+                id: productId,
                 name,
                 description: description || null,
-                price,
+                price: price ?? 0,
                 image: image || null,
                 category_id: category_id || null,
+                brand_id: brand_id || null,
+                selling_mode: selling_mode || 'both',
                 is_active: is_active !== undefined ? is_active : true,
             })
             .select(`
                 *,
-                categories ( id, name )
+                categories ( id, name ),
+                brands ( id, name )
             `)
             .single();
 
@@ -119,6 +142,21 @@ export async function POST(request: Request) {
             );
         }
 
+        // Insert product sizes if provided
+        if (sizes && Array.isArray(sizes) && sizes.length > 0) {
+            const sizeRows = sizes.map((s: { size_label: string; type: string }) => ({
+                product_id: productId,
+                size_label: s.size_label,
+                type: s.type,
+            }));
+            const { error: sizesError } = await supabaseAdmin
+                .from('product_sizes')
+                .insert(sizeRows);
+            if (sizesError) {
+                console.error('Error inserting product sizes:', sizesError);
+            }
+        }
+
         return NextResponse.json({
             id: product.id,
             name: product.name,
@@ -127,6 +165,9 @@ export async function POST(request: Request) {
             image: product.image,
             category: (product.categories as any)?.name || null,
             categoryId: (product.categories as any)?.id || null,
+            brand: (product.brands as any)?.name || null,
+            brandId: (product.brands as any)?.id || null,
+            sellingMode: product.selling_mode || 'both',
             isActive: product.is_active ?? true,
             createdAt: product.created_at,
             updatedAt: product.updated_at,
@@ -146,7 +187,7 @@ export async function PUT(request: Request) {
         if (!user) return unauthorizedResponse();
 
         const body = await request.json();
-        const { id, name, description, price, image, category_id, is_active } = body;
+        const { id, name, description, price, image, category_id, is_active, brand_id, selling_mode, sizes } = body;
 
         if (!id) {
             return NextResponse.json(
@@ -155,16 +196,25 @@ export async function PUT(request: Request) {
             );
         }
 
-        if (!name || !price) {
+        if (!name) {
             return NextResponse.json(
-                { error: 'Name and price are required' },
+                { error: 'Name is required' },
                 { status: 400 }
             );
         }
 
-        if (typeof price !== 'number' || price <= 0) {
+        if (price !== undefined && price !== null && (typeof price !== 'number' || price < 0)) {
             return NextResponse.json(
-                { error: 'Price must be a positive number' },
+                { error: 'Price must be a non-negative number' },
+                { status: 400 }
+            );
+        }
+
+        // Validate selling_mode
+        const validSellingModes = ['retail', 'wholesale', 'both'];
+        if (selling_mode && !validSellingModes.includes(selling_mode)) {
+            return NextResponse.json(
+                { error: 'Invalid selling mode' },
                 { status: 400 }
             );
         }
@@ -196,15 +246,18 @@ export async function PUT(request: Request) {
             .update({
                 name,
                 description: description || null,
-                price,
+                price: price ?? 0,
                 image: image || null,
                 category_id: category_id || null,
+                brand_id: brand_id || null,
+                selling_mode: selling_mode || 'both',
                 is_active: is_active !== undefined ? is_active : true,
             })
             .eq('id', id)
             .select(`
                 *,
-                categories ( id, name )
+                categories ( id, name ),
+                brands ( id, name )
             `)
             .single();
 
@@ -216,6 +269,28 @@ export async function PUT(request: Request) {
             );
         }
 
+        // Update sizes: delete existing then re-insert
+        if (sizes && Array.isArray(sizes)) {
+            await supabaseAdmin
+                .from('product_sizes')
+                .delete()
+                .eq('product_id', id);
+
+            if (sizes.length > 0) {
+                const sizeRows = sizes.map((s: { size_label: string; type: string }) => ({
+                    product_id: id,
+                    size_label: s.size_label,
+                    type: s.type,
+                }));
+                const { error: sizesError } = await supabaseAdmin
+                    .from('product_sizes')
+                    .insert(sizeRows);
+                if (sizesError) {
+                    console.error('Error updating product sizes:', sizesError);
+                }
+            }
+        }
+
         return NextResponse.json({
             id: product.id,
             name: product.name,
@@ -224,6 +299,9 @@ export async function PUT(request: Request) {
             image: product.image,
             category: (product.categories as any)?.name || null,
             categoryId: (product.categories as any)?.id || null,
+            brand: (product.brands as any)?.name || null,
+            brandId: (product.brands as any)?.id || null,
+            sellingMode: product.selling_mode || 'both',
             isActive: product.is_active ?? true,
             createdAt: product.created_at,
             updatedAt: product.updated_at,

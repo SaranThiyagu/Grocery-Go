@@ -1,20 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
 import {
     AlertDialog,
     AlertDialogContent,
@@ -30,10 +20,7 @@ import {
     Plus,
     IndianRupee,
     Inbox,
-    Upload,
     Loader2,
-    X,
-    ImageIcon,
     Pencil,
     Trash2,
     ChevronLeft,
@@ -43,53 +30,38 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { Switch } from '@/components/ui/switch';
 import TopNav from '@/components/admin/TopNav';
 import StatCard from '@/components/admin/StatCard';
-
-interface Category {
-    id: number;
-    name: string;
-}
 
 interface Product {
     id: string;
     name: string;
     description: string | null;
-    price: number;
+    price: number | null;
     image: string | null;
     category: string | null;
     categoryId: number | null;
+    brand: string | null;
+    brandId: number | null;
+    sellingMode: string;
+    retailSizes: string[];
+    wholesaleSizes: string[];
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
 }
 
 export default function ProductsPage() {
+    const router = useRouter();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [imageUploading, setImageUploading] = useState(false);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
-    const [formData, setFormData] = useState({
-        name: '',
-        description: '',
-        price: '',
-        categoryId: '',
-        image: '',
-        isActive: true,
-    });
 
     useEffect(() => {
         const supabase = createClient();
@@ -104,12 +76,8 @@ export default function ProductsPage() {
 
         (async () => {
             try {
-                const [prodRes, catRes] = await Promise.all([
-                    fetch('/api/products'),
-                    fetch('/api/categories'),
-                ]);
-                if (prodRes.ok) setProducts(await prodRes.json());
-                if (catRes.ok) setCategories(await catRes.json());
+                const res = await fetch('/api/products');
+                if (res.ok) setProducts(await res.json());
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -142,125 +110,12 @@ export default function ProductsPage() {
     const stats = useMemo(() => ({
         total: products.length,
         categories: new Set(products.map(p => p.category).filter(Boolean)).size,
-        avgPrice: products.length > 0 ? products.reduce((sum, p) => sum + p.price, 0) / products.length : 0,
+        brands: new Set(products.map(p => p.brand).filter(Boolean)).size,
     }), [products]);
-
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 
     const fetchProducts = async () => {
         const res = await fetch('/api/products');
         if (res.ok) setProducts(await res.json());
-    };
-
-    const handleCreateProduct = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            const res = await fetch('/api/products', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    description: formData.description || null,
-                    price: parseFloat(formData.price),
-                    category_id: formData.categoryId ? parseInt(formData.categoryId) : null,
-                    image: formData.image || null,
-                    is_active: formData.isActive,
-                }),
-            });
-            if (res.ok) {
-                setFormData({ name: '', description: '', price: '', categoryId: '', image: '', isActive: true });
-                setImagePreview(null);
-                setIsDialogOpen(false);
-                await fetchProducts();
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Failed to create product');
-            }
-        } catch {
-            alert('Failed to create product');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setImageUploading(true);
-        try {
-            const fd = new FormData();
-            fd.append('image', file);
-            const res = await fetch('/api/products/upload', { method: 'POST', body: fd });
-            if (res.ok) {
-                const data = await res.json();
-                setFormData(prev => ({ ...prev, image: data.imageUrl }));
-                setImagePreview(URL.createObjectURL(file));
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Failed to upload image');
-            }
-        } catch {
-            alert('Failed to upload image');
-        } finally {
-            setImageUploading(false);
-            e.target.value = '';
-        }
-    };
-
-    const removeImage = () => {
-        setFormData(prev => ({ ...prev, image: '' }));
-        setImagePreview(null);
-    };
-
-    const openEditDialog = (product: Product) => {
-        setEditingProduct(product);
-        setFormData({
-            name: product.name,
-            description: product.description || '',
-            price: product.price.toString(),
-            categoryId: product.categoryId?.toString() || '',
-            image: product.image || '',
-            isActive: product.isActive,
-        });
-        setImagePreview(product.image || null);
-        setIsEditDialogOpen(true);
-    };
-
-    const handleUpdateProduct = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingProduct) return;
-        setIsSubmitting(true);
-        try {
-            const res = await fetch('/api/products', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: editingProduct.id,
-                    name: formData.name,
-                    description: formData.description || null,
-                    price: parseFloat(formData.price),
-                    category_id: formData.categoryId ? parseInt(formData.categoryId) : null,
-                    image: formData.image || null,
-                    is_active: formData.isActive,
-                }),
-            });
-            if (res.ok) {
-                setFormData({ name: '', description: '', price: '', categoryId: '', image: '', isActive: true });
-                setImagePreview(null);
-                setEditingProduct(null);
-                setIsEditDialogOpen(false);
-                await fetchProducts();
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Failed to update product');
-            }
-        } catch {
-            alert('Failed to update product');
-        } finally {
-            setIsSubmitting(false);
-        }
     };
 
     const confirmDeleteProduct = async () => {
@@ -318,158 +173,21 @@ export default function ProductsPage() {
                             {stats.total} products across {stats.categories} categories
                         </p>
                     </div>
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button
-                                size="sm"
-                                className="h-9 px-3.5 text-[13px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 rounded-lg"
-                            >
-                                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                                Add Product
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
-                                <DialogTitle className="text-slate-900">Add New Product</DialogTitle>
-                                <DialogDescription className="text-slate-500">
-                                    Fill in the details to add a new product to your inventory.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleCreateProduct}>
-                                <div className="grid gap-4 py-4">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="name" className="text-slate-700">Product Name *</Label>
-                                        <Input
-                                            id="name"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            placeholder="e.g., Fresh Apples"
-                                            className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="price" className="text-slate-700">Price (₹) *</Label>
-                                        <Input
-                                            id="price"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={formData.price}
-                                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                            placeholder="e.g., 50.00"
-                                            className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="category" className="text-slate-700">Category</Label>
-                                        <Select
-                                            value={formData.categoryId}
-                                            onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-                                        >
-                                            <SelectTrigger className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300">
-                                                <SelectValue placeholder="Select a category" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {categories.map((cat) => (
-                                                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                                                        {cat.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label className="text-slate-700">Product Image</Label>
-                                        {imagePreview || formData.image ? (
-                                            <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60">
-                                                <Image
-                                                    src={imagePreview || formData.image}
-                                                    alt="Preview"
-                                                    fill
-                                                    className="object-contain"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={removeImage}
-                                                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                                                >
-                                                    <X className="h-3.5 w-3.5" />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <label className={`flex flex-col items-center justify-center gap-1.5 py-6 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer transition-colors ${
-                                                imageUploading ? 'opacity-50 pointer-events-none' : 'hover:border-indigo-300 hover:bg-indigo-50/30'
-                                            }`}>
-                                                {imageUploading ? (
-                                                    <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
-                                                ) : (
-                                                    <Upload className="h-6 w-6 text-slate-400" />
-                                                )}
-                                                <span className="text-[12px] text-slate-500">
-                                                    {imageUploading ? 'Uploading...' : 'Click to upload (JPEG, PNG, WebP · max 5 MB)'}
-                                                </span>
-                                                <input
-                                                    type="file"
-                                                    accept=".jpg,.jpeg,.png,.webp"
-                                                    onChange={handleImageUpload}
-                                                    className="hidden"
-                                                    disabled={imageUploading}
-                                                />
-                                            </label>
-                                        )}
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="description" className="text-slate-700">Description</Label>
-                                        <Textarea
-                                            id="description"
-                                            value={formData.description}
-                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                            placeholder="Enter product description..."
-                                            rows={3}
-                                            className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                        />
-                                    </div>
-                                    <div className="flex items-center justify-between py-2">
-                                        <div>
-                                            <Label className="text-slate-700">Active Product</Label>
-                                            <p className="text-[11px] text-slate-400 mt-0.5">Inactive products won&apos;t be visible to customers</p>
-                                        </div>
-                                        <Switch
-                                            checked={formData.isActive}
-                                            onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                                        />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setIsDialogOpen(false)}
-                                        disabled={isSubmitting}
-                                        className="border-slate-200 text-slate-700"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        type="submit"
-                                        disabled={isSubmitting}
-                                        className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25"
-                                    >
-                                        {isSubmitting ? 'Creating...' : 'Create Product'}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button
+                        size="sm"
+                        className="h-9 px-3.5 text-[13px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 rounded-lg"
+                        onClick={() => router.push('/admin/products/create')}
+                    >
+                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        Add Product
+                    </Button>
                 </div>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     <StatCard label="Total Products" value={stats.total} icon={<Package className="h-4 w-4" />} color="blue" />
                     <StatCard label="Categories" value={stats.categories} icon={<ShoppingCart className="h-4 w-4" />} color="emerald" />
-                    <StatCard label="Avg. Price" value={formatCurrency(stats.avgPrice)} icon={<IndianRupee className="h-4 w-4" />} color="amber" />
+                    <StatCard label="Brands" value={stats.brands} icon={<IndianRupee className="h-4 w-4" />} color="amber" />
                 </div>
 
                 {/* Products Table */}
@@ -494,10 +212,10 @@ export default function ProductsPage() {
                                 <tr className="border-b border-slate-100">
                                     <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Image</th>
                                     <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Product</th>
+                                    <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Brand</th>
                                     <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Category</th>
-                                    <th className="text-right text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Price</th>
+                                    <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Selling Mode</th>
                                     <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Status</th>
-                                    <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Description</th>
                                     <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Actions</th>
                                 </tr>
                             </thead>
@@ -522,6 +240,13 @@ export default function ProductsPage() {
                                             <span className="text-[13px] font-medium text-slate-900">{product.name}</span>
                                         </td>
                                         <td className="px-5 py-3.5">
+                                            {product.brand ? (
+                                                <span className="text-[12px] text-slate-600">{product.brand}</span>
+                                            ) : (
+                                                <span className="text-[12px] text-slate-400">&mdash;</span>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-3.5">
                                             {product.category ? (
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/50">
                                                     {product.category}
@@ -530,9 +255,15 @@ export default function ProductsPage() {
                                                 <span className="text-[12px] text-slate-400">&mdash;</span>
                                             )}
                                         </td>
-                                        <td className="px-5 py-3.5 text-right">
-                                            <span className="text-[13px] font-semibold tabular-nums text-slate-900">
-                                                {formatCurrency(product.price)}
+                                        <td className="px-5 py-3.5 text-center">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                                product.sellingMode === 'both'
+                                                    ? 'bg-violet-50 text-violet-700 border border-violet-200/50'
+                                                    : product.sellingMode === 'retail'
+                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200/50'
+                                                    : 'bg-amber-50 text-amber-700 border border-amber-200/50'
+                                            }`}>
+                                                {product.sellingMode === 'both' ? 'Both' : product.sellingMode === 'retail' ? 'Retail' : 'Wholesale'}
                                             </span>
                                         </td>
                                         <td className="px-5 py-3.5 text-center">
@@ -547,14 +278,9 @@ export default function ProductsPage() {
                                             )}
                                         </td>
                                         <td className="px-5 py-3.5">
-                                            <span className="text-[12px] text-slate-500 max-w-[280px] truncate block">
-                                                {product.description || 'No description'}
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-3.5">
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
-                                                    onClick={() => openEditDialog(product)}
+                                                    onClick={() => router.push(`/admin/products/${product.id}/edit`)}
                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                                     title="Edit product"
                                                 >
@@ -604,12 +330,9 @@ export default function ProductsPage() {
                                         )}
                                     </div>
                                 </div>
-                                <span className="text-[13px] font-semibold tabular-nums text-slate-900 flex-shrink-0">
-                                    {formatCurrency(product.price)}
-                                </span>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                     <button
-                                        onClick={() => openEditDialog(product)}
+                                        onClick={() => router.push(`/admin/products/${product.id}/edit`)}
                                         className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -704,151 +427,6 @@ export default function ProductsPage() {
                         </div>
                     )}
                 </div>
-
-                {/* Edit Product Dialog */}
-                <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-                    setIsEditDialogOpen(open);
-                    if (!open) {
-                        setEditingProduct(null);
-                        setFormData({ name: '', description: '', price: '', categoryId: '', image: '', isActive: true });
-                        setImagePreview(null);
-                    }
-                }}>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle className="text-slate-900">Edit Product</DialogTitle>
-                            <DialogDescription className="text-slate-500">
-                                Update the product details below.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleUpdateProduct}>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-name" className="text-slate-700">Product Name *</Label>
-                                    <Input
-                                        id="edit-name"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g., Fresh Apples"
-                                        className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-price" className="text-slate-700">Price (₹) *</Label>
-                                    <Input
-                                        id="edit-price"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        value={formData.price}
-                                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                                        placeholder="e.g., 50.00"
-                                        className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-category" className="text-slate-700">Category</Label>
-                                    <Select
-                                        value={formData.categoryId}
-                                        onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-                                    >
-                                        <SelectTrigger className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300">
-                                            <SelectValue placeholder="Select a category" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {categories.map((cat) => (
-                                                <SelectItem key={cat.id} value={cat.id.toString()}>
-                                                    {cat.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label className="text-slate-700">Product Image</Label>
-                                    {imagePreview || formData.image ? (
-                                        <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60">
-                                            <Image
-                                                src={imagePreview || formData.image}
-                                                alt="Preview"
-                                                fill
-                                                className="object-contain"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={removeImage}
-                                                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
-                                            >
-                                                <X className="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <label className={`flex flex-col items-center justify-center gap-1.5 py-6 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer transition-colors ${
-                                            imageUploading ? 'opacity-50 pointer-events-none' : 'hover:border-indigo-300 hover:bg-indigo-50/30'
-                                        }`}>
-                                            {imageUploading ? (
-                                                <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
-                                            ) : (
-                                                <Upload className="h-6 w-6 text-slate-400" />
-                                            )}
-                                            <span className="text-[12px] text-slate-500">
-                                                {imageUploading ? 'Uploading...' : 'Click to upload (JPEG, PNG, WebP · max 5 MB)'}
-                                            </span>
-                                            <input
-                                                type="file"
-                                                accept=".jpg,.jpeg,.png,.webp"
-                                                onChange={handleImageUpload}
-                                                className="hidden"
-                                                disabled={imageUploading}
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-description" className="text-slate-700">Description</Label>
-                                    <Textarea
-                                        id="edit-description"
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        placeholder="Enter product description..."
-                                        rows={3}
-                                        className="focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
-                                    />
-                                </div>
-                                <div className="flex items-center justify-between py-2">
-                                    <div>
-                                        <Label className="text-slate-700">Active Product</Label>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Inactive products won&apos;t be visible to customers</p>
-                                    </div>
-                                    <Switch
-                                        checked={formData.isActive}
-                                        onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-                                    />
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setIsEditDialogOpen(false)}
-                                    disabled={isSubmitting}
-                                    className="border-slate-200 text-slate-700"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25"
-                                >
-                                    {isSubmitting ? 'Saving...' : 'Save Changes'}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
 
                 {/* Delete Confirmation Dialog */}
                 <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteError(null); } }}>
