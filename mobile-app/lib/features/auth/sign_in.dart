@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:loginapp/core/app/controllers/auth_controller.dart';
 import 'package:loginapp/core/utils/responsive_utils.dart';
@@ -10,36 +8,41 @@ import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
 
-class SigIn extends StatelessWidget {
-  const SigIn({super.key});
+const _googleLogoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_"G"_logo.svg/1200px-Google_"G"_logo.svg.png';
+
+class SignIn extends StatelessWidget {
+  const SignIn({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveWidget(
-        mobileScreen: SigInMobile(),
-        tabletScreen: SigInTablet()
+        mobileScreen: SignInMobile(),
+        tabletScreen: SignInTablet()
     );
   }
 }
 
-class SigInMobile extends StatefulWidget {
-  const SigInMobile({super.key});
+class SignInMobile extends StatefulWidget {
+  const SignInMobile({super.key});
 
   @override
-  State<SigInMobile> createState() => _SigInMobileState();
+  State<SignInMobile> createState() => _SignInMobileState();
 }
 
-class _SigInMobileState extends State<SigInMobile> {
+class _SignInMobileState extends State<SignInMobile> {
   final AuthController ac = Get.find<AuthController>();
   @override
   Widget build(BuildContext context) {
     return SafeAreaWidget(
-        body: Padding(
+        body: SingleChildScrollView(
           padding:  EdgeInsets.symmetric(horizontal: context.scale(24)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-               Spacer(flex: 1),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: context.scale(40)),
               Container(
                 width: context.scale(64),
                 height: context.scale(64),
@@ -56,7 +59,7 @@ class _SigInMobileState extends State<SigInMobile> {
                 ),
                 child: Center(
                   child: Image.network(
-                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png',
+                    _googleLogoUrl,
                     width: context.scale(32),
                   ),
                 ),
@@ -70,12 +73,11 @@ class _SigInMobileState extends State<SigInMobile> {
                 width: double.infinity,
                 height: context.scale(56),
                 child: OutlinedButton(
-                  onPressed: () async{
-                    final result = await ac.signInWithGmail();
-                    if(result != null){
-                      await ac.storeDetails(result);
-                    }else{
-                      errorToast(context, "Something went wrong please try again later");
+                  onPressed: () async {
+                    await ac.signInWithGmail();
+                    if (!context.mounted) return;
+                    if (ac.lastError.value.isNotEmpty) {
+                      errorToast(context, "Error: ${ac.lastError.value}");
                     }
                   },
                   style: OutlinedButton.styleFrom(
@@ -95,7 +97,7 @@ class _SigInMobileState extends State<SigInMobile> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png',
+                          _googleLogoUrl,
                           width: context.scale(20),
                         ),
                         SizedBox(width: context.scale(12)),
@@ -137,7 +139,7 @@ class _SigInMobileState extends State<SigInMobile> {
                   height: 1.5,
                 ),
               ),
-              const Spacer(flex: 3),
+               SizedBox(height: context.scale(48)),
 
               Padding(
                 padding:  EdgeInsets.only(bottom: context.scale(24)),
@@ -161,30 +163,34 @@ class _SigInMobileState extends State<SigInMobile> {
                SizedBox(height: context.scale(16)),
             ],
           ),
+          ),
         )
     );
   }
 }
 
-class SigInTablet extends StatefulWidget {
-  const SigInTablet({super.key});
+class SignInTablet extends StatefulWidget {
+  const SignInTablet({super.key});
 
   @override
-  State<SigInTablet> createState() => _SigInTabletState();
+  State<SignInTablet> createState() => _SignInTabletState();
 }
 
-class _SigInTabletState extends State<SigInTablet> {
+class _SignInTabletState extends State<SignInTablet> {
   final AuthController ac = Get.find<AuthController>();
 
   @override
   Widget build(BuildContext context) {
     return SafeAreaWidget(
-        body: Padding(
+        body: SingleChildScrollView(
           padding:  EdgeInsets.symmetric(horizontal: context.scale(24)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Spacer(flex: 1),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: context.scale(40)),
               Container(
                 width: context.scale(64),
                 height: context.scale(64),
@@ -201,7 +207,7 @@ class _SigInTabletState extends State<SigInTablet> {
                 ),
                 child: Center(
                   child: Image.network(
-                    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png',
+                    _googleLogoUrl,
                     width: context.scale(32),
                   ),
                 ),
@@ -215,12 +221,11 @@ class _SigInTabletState extends State<SigInTablet> {
                 width: double.infinity,
                 height: context.scale(56),
                 child: OutlinedButton(
-                  onPressed: () async{
-                    final result = await ac.signInWithGmail();
-                    if(result != null){
-                      await ac.storeDetails(result);
-                    }else{
-                      errorToast(context, "Something went wrong please try again later");
+                  onPressed: () async {
+                    await ac.signInWithGmail();
+                    if (!context.mounted) return;
+                    if (ac.lastError.value.isNotEmpty) {
+                      errorToast(context, "Error: ${ac.lastError.value}");
                     }
                   },
                   style: OutlinedButton.styleFrom(
@@ -240,7 +245,7 @@ class _SigInTabletState extends State<SigInTablet> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_\"G\"_logo.svg/1200px-Google_\"G\"_logo.svg.png',
+                          _googleLogoUrl,
                           width: context.scale(20),
                         ),
                         SizedBox(width: context.scale(12)),
@@ -282,7 +287,7 @@ class _SigInTabletState extends State<SigInTablet> {
                   height: 1.5,
                 ),
               ),
-              const Spacer(flex: 3),
+              SizedBox(height: context.scale(48)),
 
               Padding(
                 padding:  EdgeInsets.only(bottom: context.scale(24)),
@@ -305,6 +310,7 @@ class _SigInTabletState extends State<SigInTablet> {
               ),
               SizedBox(height: context.scale(16)),
             ],
+          ),
           ),
         )
     );

@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import TagInput from '@/components/admin/TagInput';
 import ImageUpload from '@/components/admin/ImageUpload';
 import ProductPreview from '@/components/admin/ProductPreview';
@@ -40,13 +42,17 @@ interface ProductFormProps {
     onSubmitSuccess?: () => void;
 }
 
-const RETAIL_SUGGESTIONS = ['50ml', '100ml', '200ml', '500ml', '1L'];
-const WHOLESALE_SUGGESTIONS = ['1L', '5L', '10L'];
+const DEFAULT_RETAIL_SUGGESTIONS = ['50ml', '100ml', '200ml', '500ml', '1L'];
+const DEFAULT_WHOLESALE_SUGGESTIONS = ['1L', '5L', '10L'];
 
 export default function ProductForm({ mode, initialData, onSubmitSuccess }: ProductFormProps) {
     const router = useRouter();
     const [categories, setCategories] = useState<Category[]>([]);
     const [brands, setBrands] = useState<Brand[]>([]);
+    const [retailSuggestions, setRetailSuggestions] = useState<string[]>(DEFAULT_RETAIL_SUGGESTIONS);
+    const [wholesaleSuggestions, setWholesaleSuggestions] = useState<string[]>(DEFAULT_WHOLESALE_SUGGESTIONS);
+    const [brandOpen, setBrandOpen] = useState(false);
+    const [categoryOpen, setCategoryOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<{ retailSizes?: string; wholesaleSizes?: string }>({});
     const [formData, setFormData] = useState<ProductFormData>({
@@ -75,6 +81,26 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
             }
         })();
     }, []);
+
+    // Fetch size suggestions when category changes
+    useEffect(() => {
+        (async () => {
+            try {
+                const url = formData.categoryId
+                    ? `/api/products/sizes?categoryId=${formData.categoryId}`
+                    : '/api/products/sizes';
+                const sizesRes = await fetch(url);
+                if (sizesRes.ok) {
+                    const sizesData = await sizesRes.json();
+                    setRetailSuggestions(sizesData.retail?.length > 0 ? sizesData.retail : DEFAULT_RETAIL_SUGGESTIONS);
+                    setWholesaleSuggestions(sizesData.wholesale?.length > 0 ? sizesData.wholesale : DEFAULT_WHOLESALE_SUGGESTIONS);
+                }
+            } catch (error) {
+                console.error('Error fetching size suggestions:', error);
+            }
+        })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.categoryId]);
 
     // If initialData changes (e.g., when product data loads), update form
     useEffect(() => {
@@ -177,39 +203,87 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[13px] font-semibold text-slate-700">Brand</Label>
-                                <Select
-                                    value={formData.brandId}
-                                    onValueChange={(value) => setFormData({ ...formData, brandId: value })}
-                                >
-                                    <SelectTrigger className="h-10 text-[13px] focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300">
-                                        <SelectValue placeholder="Select brand" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {brands.map((brand) => (
-                                            <SelectItem key={brand.id} value={brand.id.toString()}>
-                                                {brand.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={brandOpen} onOpenChange={setBrandOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={brandOpen}
+                                            className="w-full h-10 justify-between text-[13px] font-normal focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
+                                        >
+                                            {formData.brandId
+                                                ? brands.find(b => b.id.toString() === formData.brandId)?.name
+                                                : 'Select brand'}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Search brand..." className="text-[13px]" />
+                                            <CommandList>
+                                                <CommandEmpty>No brand found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {brands.map((brand) => (
+                                                        <CommandItem
+                                                            key={brand.id}
+                                                            value={brand.name}
+                                                            onSelect={() => {
+                                                                setFormData({ ...formData, brandId: brand.id.toString() });
+                                                                setBrandOpen(false);
+                                                            }}
+                                                            className="text-[13px]"
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4", formData.brandId === brand.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                            {brand.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[13px] font-semibold text-slate-700">Category</Label>
-                                <Select
-                                    value={formData.categoryId}
-                                    onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-                                >
-                                    <SelectTrigger className="h-10 text-[13px] focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300">
-                                        <SelectValue placeholder="Choose category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {categories.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.id.toString()}>
-                                                {cat.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            aria-expanded={categoryOpen}
+                                            className="w-full h-10 justify-between text-[13px] font-normal focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300"
+                                        >
+                                            {formData.categoryId
+                                                ? categories.find(c => c.id.toString() === formData.categoryId)?.name
+                                                : 'Choose category'}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Search category..." className="text-[13px]" />
+                                            <CommandList>
+                                                <CommandEmpty>No category found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    {categories.map((cat) => (
+                                                        <CommandItem
+                                                            key={cat.id}
+                                                            value={cat.name}
+                                                            onSelect={() => {
+                                                                setFormData({ ...formData, categoryId: cat.id.toString() });
+                                                                setCategoryOpen(false);
+                                                            }}
+                                                            className="text-[13px]"
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4", formData.categoryId === cat.id.toString() ? "opacity-100" : "opacity-0")} />
+                                                            {cat.name}
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
 
@@ -287,8 +361,8 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                         setFormData({ ...formData, retailSizes: sizes });
                                         if (sizes.length > 0) setErrors(prev => ({ ...prev, retailSizes: undefined }));
                                     }}
-                                    suggestions={RETAIL_SUGGESTIONS}
-                                    placeholder="Type size and press Enter (e.g., 250ml)"
+                                    suggestions={retailSuggestions}
+                                    placeholder={`Type size and press Enter (e.g., ${retailSuggestions[0] || '250ml'})`}
                                     hasError={!!errors.retailSizes}
                                 />
                                 {errors.retailSizes && (
@@ -312,8 +386,8 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                         setFormData({ ...formData, wholesaleSizes: sizes });
                                         if (sizes.length > 0) setErrors(prev => ({ ...prev, wholesaleSizes: undefined }));
                                     }}
-                                    suggestions={WHOLESALE_SUGGESTIONS}
-                                    placeholder="Type size and press Enter (e.g., 20L)"
+                                    suggestions={wholesaleSuggestions}
+                                    placeholder={`Type size and press Enter (e.g., ${wholesaleSuggestions[0] || '20L'})`}
                                     hasError={!!errors.wholesaleSizes}
                                 />
                                 {errors.wholesaleSizes && (

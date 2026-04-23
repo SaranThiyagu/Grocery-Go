@@ -6,7 +6,8 @@ import 'package:loginapp/core/utils/responsive_utils.dart';
 import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
-import 'package:loginapp/features/cart/cart_screen.dart';
+import 'package:loginapp/core/routes/app_routes.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class OrderScreen extends StatelessWidget {
   const OrderScreen({super.key});
@@ -28,7 +29,7 @@ class OrderScreenMobile extends StatefulWidget {
 }
 
 class _OrderScreenMobileState extends State<OrderScreenMobile> {
-  final OrderController controller = Get.put(OrderController());
+  final OrderController controller = Get.find<OrderController>();
   bool showFilters = false;
 
   @override
@@ -62,7 +63,7 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
                 IconButton(
                   icon: Icon(Icons.shopping_cart),
                   onPressed: () {
-                    Get.to(() => const CartScreen());
+                    Get.toNamed(AppRoutes.cart);
                   },
                 ),
                 if (cartCount > 0)
@@ -194,10 +195,17 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
           
           // Product Grid
           Expanded(
-            child: Obx(() {
-              final products = controller.filteredProducts;
-              if (products.isEmpty) {
-                return Center(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (scrollInfo) {
+                if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+                  controller.loadMore();
+                }
+                return false;
+              },
+              child: Obx(() {
+                final products = controller.filteredProducts;
+                if (products.isEmpty) {
+                  return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -218,8 +226,18 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
                   crossAxisSpacing: context.scale(12),
                   mainAxisSpacing: context.scale(12),
                 ),
-                itemCount: products.length,
+                itemCount: products.length + (controller.hasMore.value ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index == products.length) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Obx(() => controller.isLoadingMore.value
+                          ? const CircularProgressIndicator()
+                          : const SizedBox.shrink()),
+                      ),
+                    );
+                  }
                   final product = products[index];
                   return Container(
                     decoration: BoxDecoration(
@@ -242,7 +260,7 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
                                   color: Colors.grey.shade200,
                                   borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
                                   image: DecorationImage(
-                                    image: NetworkImage(product.image),
+                                    image: CachedNetworkImageProvider(product.image),
                                     fit: BoxFit.cover,
                                     onError: (obj, trace) => const SizedBox(), // handle broken image
                                   )
@@ -272,8 +290,8 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
                               TextWidget(text: product.name, fontWeight: FontWeight.bold, fontSize: context.scale(14), maxLines: 1),
                               SizedBox(height: 4),
                               TextWidget(text: product.description, color: Colors.grey.shade600, fontSize: context.scale(10), maxLines: 2),
+                              // Price hidden per user request
                               SizedBox(height: 8),
-                              TextWidget(text: "₹${product.price.toStringAsFixed(2)}", fontWeight: FontWeight.bold, color: Colors.blue.shade600, fontSize: context.scale(16)),
                               SizedBox(height: 8),
                               
                               // Quantity Controls
@@ -327,6 +345,7 @@ class _OrderScreenMobileState extends State<OrderScreenMobile> {
                 },
               );
             }),
+            ),
           )
         ],
       ),

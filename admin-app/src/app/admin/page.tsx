@@ -23,6 +23,8 @@ export default function AdminPanel() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
   const { toast } = useToast();
   const router = useRouter();
@@ -102,6 +104,8 @@ export default function AdminPanel() {
         o.id.toLowerCase().includes(term) ||
         o.userName?.toLowerCase().includes(term) ||
         o.userEmail?.toLowerCase().includes(term) ||
+        o.customerStoreName?.toLowerCase().includes(term) ||
+        o.customerMobile?.includes(term) ||
         o.items.some(i => i.productName.toLowerCase().includes(term))
       );
     }
@@ -128,6 +132,17 @@ export default function AdminPanel() {
 
     return result;
   }, [orders, searchTerm, statusFilter, sortBy]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredOrders.slice(start, start + pageSize);
+  }, [filteredOrders, currentPage, pageSize]);
 
   const stats = useMemo(() => {
     const total = orders.length;
@@ -202,8 +217,14 @@ export default function AdminPanel() {
             onSortChange={setSortBy}
           />
           <OrdersTable
-            orders={filteredOrders}
+            orders={paginatedOrders}
             allOrdersCount={orders.length}
+            filteredCount={filteredOrders.length}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
             onOrderClick={handleOrderClick}
           />
         </div>

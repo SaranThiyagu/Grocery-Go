@@ -13,6 +13,7 @@ export async function GET() {
             .from('orders')
             .select(`
                 *,
+                customers ( id, full_name, store_name, mobile_no, email, customer_type ),
                 order_items (
                     *,
                     products ( id, name, price, image )
@@ -46,12 +47,19 @@ export async function GET() {
         // Transform the data to match the admin panel interface
         const transformedOrders = (orders || []).map(order => {
             const profile = profilesMap[order.user_id] || {};
+            const customer = order.customers as any;
             return {
                 id: order.id.toString(),
                 userId: order.user_id,
-                userName: profile.name || 'Unknown',
-                userEmail: profile.email || 'N/A',
+                userName: customer?.full_name || profile.name || 'Unknown',
+                userEmail: customer?.email || profile.email || 'N/A',
                 userAvatar: profile.picture,
+                customerId: order.customer_id || null,
+                customerName: customer?.full_name || null,
+                customerStoreName: customer?.store_name || null,
+                customerMobile: customer?.mobile_no || null,
+                customerEmail: customer?.email || null,
+                customerType: customer?.customer_type || null,
                 totalAmount: order.total_amount,
                 status: order.status,
                 createdAt: order.created_at,

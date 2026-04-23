@@ -12,9 +12,11 @@ import {
 import {
   ShoppingBag,
   Package,
+  Users,
   Bell,
   LogOut,
   ChevronDown,
+  Ruler,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -25,6 +27,8 @@ interface TopNavProps {
 const navItems = [
   { label: 'Orders', href: '/admin', icon: ShoppingBag },
   { label: 'Products', href: '/admin/products', icon: Package },
+  { label: 'Customers', href: '/admin/customers', icon: Users },
+  { label: 'Sizes', href: '/admin/category-sizes', icon: Ruler },
 ];
 
 export default function TopNav({ currentUser }: TopNavProps) {
@@ -64,7 +68,7 @@ export default function TopNav({ currentUser }: TopNavProps) {
                     key={item.href}
                     onClick={() => router.push(item.href)}
                     className={`
-                      flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150
+                      flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer
                       ${active
                         ? 'text-white bg-white/[0.1]'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
@@ -81,7 +85,7 @@ export default function TopNav({ currentUser }: TopNavProps) {
 
           {/* Right: User */}
           <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] transition-colors">
+            <button className="relative p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer">
               <Bell className="h-4 w-4" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400 ring-2 ring-slate-950" />
             </button>
@@ -91,7 +95,7 @@ export default function TopNav({ currentUser }: TopNavProps) {
             {currentUser && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors outline-none">
+                  <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.06] transition-colors outline-none cursor-pointer">
                     <Avatar className="h-6 w-6 ring-1 ring-white/10">
                       <AvatarFallback className="text-[10px] font-semibold bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
                         {currentUser.displayName?.charAt(0)?.toUpperCase()}
@@ -121,4 +125,4 @@ export default function TopNav({ currentUser }: TopNavProps) {
       </div>
     </header>
   );
-}
+}

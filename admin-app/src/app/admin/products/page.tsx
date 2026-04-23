@@ -27,6 +27,8 @@ import {
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
+    Filter,
+    X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -56,6 +58,9 @@ export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterBrand, setFilterBrand] = useState('all');
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [filterSellingMode, setFilterSellingMode] = useState('all');
     const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
@@ -86,15 +91,40 @@ export default function ProductsPage() {
         })();
     }, []);
 
+    const uniqueBrands = useMemo(() => {
+        return Array.from(new Set(products.map(p => p.brand).filter(Boolean))).sort() as string[];
+    }, [products]);
+
+    const uniqueCategories = useMemo(() => {
+        return Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort() as string[];
+    }, [products]);
+
     const filteredProducts = useMemo(() => {
-        if (!searchTerm) return products;
-        const term = searchTerm.toLowerCase();
-        return products.filter(p =>
-            p.name.toLowerCase().includes(term) ||
-            p.description?.toLowerCase().includes(term) ||
-            p.category?.toLowerCase().includes(term)
-        );
-    }, [products, searchTerm]);
+        return products.filter(p => {
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                if (!(
+                    p.name.toLowerCase().includes(term) ||
+                    p.description?.toLowerCase().includes(term) ||
+                    p.category?.toLowerCase().includes(term)
+                )) return false;
+            }
+            if (filterBrand !== 'all') {
+                if (filterBrand === 'none' ? p.brand !== null : p.brand !== filterBrand) return false;
+            }
+            if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+            if (filterSellingMode !== 'all' && p.sellingMode !== filterSellingMode) return false;
+            return true;
+        });
+    }, [products, searchTerm, filterBrand, filterCategory, filterSellingMode]);
+
+    const hasActiveFilters = filterBrand !== 'all' || filterCategory !== 'all' || filterSellingMode !== 'all';
+
+    const clearFilters = () => {
+        setFilterBrand('all');
+        setFilterCategory('all');
+        setFilterSellingMode('all');
+    };
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
     const paginatedProducts = useMemo(() => {
@@ -102,10 +132,10 @@ export default function ProductsPage() {
         return filteredProducts.slice(start, start + pageSize);
     }, [filteredProducts, currentPage, pageSize]);
 
-    // Reset to page 1 when search or page size changes
+    // Reset to page 1 when search, filters, or page size changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, pageSize]);
+    }, [searchTerm, filterBrand, filterCategory, filterSellingMode, pageSize]);
 
     const stats = useMemo(() => ({
         total: products.length,
@@ -192,16 +222,64 @@ export default function ProductsPage() {
 
                 {/* Products Table */}
                 <div className="bg-white rounded-2xl border border-slate-200/60 premium-shadow overflow-hidden">
-                    {/* Search Bar */}
-                    <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100">
-                        <div className="relative w-full sm:w-80">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-slate-400" />
-                            <Input
-                                placeholder="Search products..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-9 h-9 text-[13px] bg-slate-50/80 border-slate-200/60 shadow-none rounded-lg focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300 placeholder:text-slate-400"
-                            />
+                    {/* Search & Filters */}
+                    <div className="flex flex-col gap-3 px-5 py-3 border-b border-slate-100">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative w-full sm:w-80">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-slate-400" />
+                                <Input
+                                    placeholder="Search products..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-9 h-9 text-[13px] bg-slate-50/80 border-slate-200/60 shadow-none rounded-lg focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300 placeholder:text-slate-400"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Filter className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
+                                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                                    <SelectTrigger className="h-9 w-[140px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
+                                        <SelectValue placeholder="Category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all" className="text-[12px]">All Categories</SelectItem>
+                                        {uniqueCategories.map((cat) => (
+                                            <SelectItem key={cat} value={cat} className="text-[12px]">{cat}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filterBrand} onValueChange={setFilterBrand}>
+                                    <SelectTrigger className="h-9 w-[140px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
+                                        <SelectValue placeholder="Brand" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all" className="text-[12px]">All Brands</SelectItem>
+                                        <SelectItem value="none" className="text-[12px]">No Brand</SelectItem>
+                                        {uniqueBrands.map((brand) => (
+                                            <SelectItem key={brand} value={brand} className="text-[12px]">{brand}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filterSellingMode} onValueChange={setFilterSellingMode}>
+                                    <SelectTrigger className="h-9 w-[140px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
+                                        <SelectValue placeholder="Selling Mode" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all" className="text-[12px]">All Modes</SelectItem>
+                                        <SelectItem value="retail" className="text-[12px]">Retail</SelectItem>
+                                        <SelectItem value="wholesale" className="text-[12px]">Wholesale</SelectItem>
+                                        <SelectItem value="both" className="text-[12px]">Both</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {hasActiveFilters && (
+                                    <button
+                                        onClick={clearFilters}
+                                        className="flex items-center gap-1 h-9 px-2.5 text-[12px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -361,7 +439,7 @@ export default function ProductsPage() {
                             </div>
                             <p className="text-[14px] font-medium text-slate-600 mb-1">No products found</p>
                             <p className="text-[12px] text-slate-400 text-center max-w-[240px]">
-                                {searchTerm ? 'Try adjusting your search.' : 'Add your first product to get started.'}
+                                {searchTerm || hasActiveFilters ? 'Try adjusting your search or filters.' : 'Add your first product to get started.'}
                             </p>
                         </div>
                     )}

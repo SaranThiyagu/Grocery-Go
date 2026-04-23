@@ -1,9 +1,15 @@
-import { ChevronRight, Inbox, FileCheck } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Inbox, FileCheck, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { type Order, StatusBadge } from './OrderDrawer';
 
 interface OrdersTableProps {
   orders: Order[];
   allOrdersCount: number;
+  filteredCount: number;
+  currentPage: number;
+  totalPages: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
   onOrderClick: (order: Order) => void;
 }
 
@@ -28,7 +34,7 @@ function formatRelativeDate(dateString: string) {
   });
 }
 
-export default function OrdersTable({ orders, allOrdersCount, onOrderClick }: OrdersTableProps) {
+export default function OrdersTable({ orders, allOrdersCount, filteredCount, currentPage, totalPages, pageSize, onPageChange, onPageSizeChange, onOrderClick }: OrdersTableProps) {
   return (
     <>
       {/* Desktop Table */}
@@ -74,7 +80,11 @@ export default function OrdersTable({ orders, allOrdersCount, onOrderClick }: Or
                         </div>
                         <div className="min-w-0">
                           <p className="text-[13px] font-medium text-slate-900 truncate max-w-[140px]">{order.userName}</p>
-                          <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{order.userEmail}</p>
+                          {order.customerStoreName ? (
+                            <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{order.customerStoreName}</p>
+                          ) : (
+                            <p className="text-[11px] text-slate-400 truncate max-w-[140px]">{order.customerMobile || order.userEmail}</p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -164,17 +174,112 @@ export default function OrdersTable({ orders, allOrdersCount, onOrderClick }: Or
         )}
       </div>
 
-      {/* Footer */}
-      {orders.length > 0 && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100">
-          <p className="text-[12px] text-slate-400">
-            Showing <span className="font-medium text-slate-600">{orders.length}</span> of{' '}
-            <span className="font-medium text-slate-600">{allOrdersCount}</span> orders
-          </p>
+      {/* Footer with Pagination */}
+      {filteredCount > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-slate-100">
+          <div className="flex items-center gap-3">
+            <p className="text-[12px] text-slate-400">
+              Showing{' '}
+              <span className="font-medium text-slate-600">
+                {Math.min((currentPage - 1) * pageSize + 1, filteredCount)}–{Math.min(currentPage * pageSize, filteredCount)}
+              </span>{' '}
+              of <span className="font-medium text-slate-600">{filteredCount}</span>
+              {filteredCount !== allOrdersCount && (
+                <span className="text-slate-300"> (filtered from {allOrdersCount})</span>
+              )}
+            </p>
+            <div className="hidden sm:flex items-center gap-1.5">
+              <label className="text-[11px] text-slate-400">Rows:</label>
+              <select
+                value={pageSize}
+                onChange={e => onPageSizeChange(Number(e.target.value))}
+                className="h-7 text-[11px] px-1.5 pr-6 rounded-lg border border-slate-200 bg-white text-slate-600 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-300"
+              >
+                {[10, 25, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => onPageChange(1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="First page"
+              >
+                <ChevronsLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+
+              {generatePageNumbers(currentPage, totalPages).map((page, i) =>
+                page === '...' ? (
+                  <span key={`ellipsis-${i}`} className="px-1 text-[11px] text-slate-300">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => onPageChange(page as number)}
+                    className={`min-w-[28px] h-7 px-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${
+                      currentPage === page
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/25'
+                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+
+              <button
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Next page"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => onPageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                title="Last page"
+              >
+                <ChevronsRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
   );
+}
+
+// Generate smart page number array with ellipsis
+function generatePageNumbers(current: number, total: number): (number | string)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages: (number | string)[] = [1];
+
+  if (current > 3) pages.push('...');
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push('...');
+
+  pages.push(total);
+  return pages;
 }
 
 function EmptyState() {

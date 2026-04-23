@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      customers: {
+        Row: {
+          id: string
+          full_name: string
+          store_name: string | null
+          mobile_no: string
+          alternate_contact_no: string | null
+          email: string | null
+          gst_no: string | null
+          date_of_birth: string | null
+          anniversary_date: string | null
+          gender: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          state: string | null
+          pincode: string | null
+          country: string | null
+          customer_type: string | null
+          status: string | null
+          tags: Json | null
+          notes: string | null
+          created_at: string | null
+          updated_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          full_name: string
+          store_name?: string | null
+          mobile_no: string
+          alternate_contact_no?: string | null
+          email?: string | null
+          gst_no?: string | null
+          date_of_birth?: string | null
+          anniversary_date?: string | null
+          gender?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          state?: string | null
+          pincode?: string | null
+          country?: string | null
+          customer_type?: string | null
+          status?: string | null
+          tags?: Json | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          full_name?: string
+          store_name?: string | null
+          mobile_no?: string
+          alternate_contact_no?: string | null
+          email?: string | null
+          gst_no?: string | null
+          date_of_birth?: string | null
+          anniversary_date?: string | null
+          gender?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          state?: string | null
+          pincode?: string | null
+          country?: string | null
+          customer_type?: string | null
+          status?: string | null
+          tags?: Json | null
+          notes?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by?: string | null
+        }
+        Relationships: []
+      }
       brands: {
         Row: {
           created_at: string
@@ -101,6 +179,7 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          customer_id: string | null
           id: string
           order_no: string
           status: string
@@ -110,6 +189,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          customer_id?: string | null
           id: string
           order_no: string
           status: string
@@ -119,6 +199,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          customer_id?: string | null
           id?: string
           order_no?: string
           status?: string
@@ -126,7 +207,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

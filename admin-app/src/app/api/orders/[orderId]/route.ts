@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 const ORDER_SELECT = `
     *,
+    customers ( id, full_name, store_name, mobile_no, email, customer_type ),
     order_items (
         *,
         products ( id, name, price, image )
@@ -21,13 +22,13 @@ const VALID_TRANSITIONS: Record<string, string> = {
 // GET single order by ID
 export async function GET(
     request: Request,
-    { params }: { params: { orderId: string } }
+    { params }: { params: Promise<{ orderId: string }> }
 ) {
     try {
         const user = await getAuthenticatedUser();
         if (!user) return unauthorizedResponse();
 
-        const orderId = params.orderId;
+        const { orderId } = await params;
 
         const { data: order, error } = await supabaseAdmin
             .from('orders')
@@ -61,12 +62,19 @@ export async function GET(
         }
 
         // Transform the data
+        const customer = (order as any).customers as any;
         const transformedOrder = {
             id: order.id.toString(),
             userId: order.user_id,
-            userName: profile.name || 'Unknown',
-            userEmail: profile.email || 'N/A',
+            userName: customer?.full_name || profile.name || 'Unknown',
+            userEmail: customer?.email || profile.email || 'N/A',
             userAvatar: profile.picture,
+            customerId: order.customer_id || null,
+            customerName: customer?.full_name || null,
+            customerStoreName: customer?.store_name || null,
+            customerMobile: customer?.mobile_no || null,
+            customerEmail: customer?.email || null,
+            customerType: customer?.customer_type || null,
             totalAmount: order.total_amount,
             status: order.status,
             createdAt: order.created_at,
@@ -96,13 +104,13 @@ export async function GET(
 // PATCH - Update order status
 export async function PATCH(
     request: Request,
-    { params }: { params: { orderId: string } }
+    { params }: { params: Promise<{ orderId: string }> }
 ) {
     try {
         const user = await getAuthenticatedUser();
         if (!user) return unauthorizedResponse();
 
-        const orderId = params.orderId;
+        const { orderId } = await params;
 
         const body = await request.json();
         const { status, comment } = body;

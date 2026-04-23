@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loginapp/core/app/controllers/dashboard_controller.dart';
 import 'package:loginapp/core/app/controllers/global_controller.dart';
-import 'package:loginapp/core/app/controllers/local_storage_controller.dart';
+import 'package:loginapp/core/models/order_model.dart';
 import 'package:loginapp/core/utils/colors.dart';
-import 'package:loginapp/core/utils/route_function.dart';
+import 'package:loginapp/core/routes/app_routes.dart';
 import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
-import 'package:loginapp/features/order/order_screen.dart';
-import 'package:loginapp/features/profile/profile_screen.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
 import 'package:loginapp/core/utils/responsive_utils.dart';
+import 'package:loginapp/core/app/controllers/auth_controller.dart';
 
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
@@ -49,15 +48,9 @@ class _DashboardMobileState extends State<DashboardMobile> {
         iconTheme: IconThemeData(color: ColorStyles.whiteColor),
         actions: [
           IconButton(
-            icon: Icon(Icons.shopping_cart),
-            onPressed: () {
-              AppRoute.getTo(() => OrderScreen());
-            },
-          ),
-          IconButton(
             icon: Icon(Icons.person),
             onPressed: () {
-              AppRoute.getTo(() => ProfileScreen());
+              Get.toNamed(AppRoutes.profile);
             },
           ),
           Padding(
@@ -86,14 +79,14 @@ class _DashboardMobileState extends State<DashboardMobile> {
               title: TextWidget(text: 'Shop Grocery', fontSize: context.scale(12), fontWeight: FontWeight.w600),
               onTap: () {
                 Navigator.pop(context);
-                AppRoute.getTo(() => OrderScreen());
+                Get.toNamed(AppRoutes.order);
               },
             ),
             ListTile(
               leading: Icon(Icons.logout_outlined),
               title: TextWidget(text: 'Logout', fontSize: context.scale(12), fontWeight: FontWeight.w600),
               onTap: () async {
-                await LocalStorage.logout();
+                Get.find<AuthController>().logout();
               },
             ),
           ],
@@ -127,7 +120,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
                             ],
                           ),
                         ),
-                        Icon(Icons.shopping_basket, color: Colors.white.withOpacity(0.5), size: 48)
+                        Icon(Icons.shopping_basket, color: Colors.white.withValues(alpha: 0.5), size: 48)
                       ],
                     ),
                   ),
@@ -137,109 +130,26 @@ class _DashboardMobileState extends State<DashboardMobile> {
                   Obx(() => GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
+                    physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
                     childAspectRatio: 1.5,
                     children: [
                       _buildStatCard("Total Orders", controller.orderCount.toString(), Icons.inventory_2, Colors.indigo),
-                      _buildStatCard("Pending", controller.pendingCount.toString(), Icons.pending_actions, Colors.amber),
+                      _buildStatCard("Confirmed", controller.confirmedCount.toString(), Icons.verified, Colors.green),
                       _buildStatCard("Processing", controller.processingCount.toString(), Icons.loop, Colors.blue),
-                      _buildStatCard("Completed", controller.completedCount.toString(), Icons.check_circle, Colors.green),
+                      _buildStatCard("Completed", controller.completedCount.toString(), Icons.check_circle, Colors.teal),
                     ],
                   )),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                  // Filters
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextWidget(text: "Search Orders", fontWeight: FontWeight.bold),
-                        SizedBox(height: 8),
-                        TextField(
-                          onChanged: (val) {
-                            controller.searchTerm.value = val;
-                            // Trigger reactive filter manually if needed, but in RxList it's handled.
-                            // Actually since we use a getter we can just wrap the list in Obx.
-                          },
-                          decoration: InputDecoration(
-                            hintText: "Search by ID or product...",
-                            prefixIcon: Icon(Icons.search),
-                            contentPadding: EdgeInsets.zero,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  TextWidget(text: "Status", fontWeight: FontWeight.bold),
-                                  SizedBox(height: 8),
-                                  Obx(() => DropdownButtonFormField<String>(
-                                    value: controller.statusFilter.value,
-                                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), contentPadding: EdgeInsets.symmetric(horizontal: 10)),
-                                    items: [
-                                      DropdownMenuItem(value: 'all', child: Text("All Status")),
-                                      DropdownMenuItem(value: 'pending', child: Text("Pending")),
-                                      DropdownMenuItem(value: 'processing', child: Text("Processing")),
-                                      DropdownMenuItem(value: 'completed', child: Text("Completed")),
-                                      DropdownMenuItem(value: 'cancelled', child: Text("Cancelled")),
-                                    ],
-                                    onChanged: (val) => controller.statusFilter.value = val ?? 'all',
-                                  )),
-                                ],
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  TextWidget(text: "Sort By", fontWeight: FontWeight.bold),
-                                  SizedBox(height: 8),
-                                  Obx(() => DropdownButtonFormField<String>(
-                                    value: controller.sortBy.value,
-                                    decoration: InputDecoration(border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)), contentPadding: EdgeInsets.symmetric(horizontal: 10)),
-                                    items: [
-                                      DropdownMenuItem(value: 'date-desc', child: Text("Newest First")),
-                                      DropdownMenuItem(value: 'date-asc', child: Text("Oldest First")),
-                                      DropdownMenuItem(value: 'amount-desc', child: Text("Highest Amount")),
-                                      DropdownMenuItem(value: 'amount-asc', child: Text("Lowest Amount")),
-                                      DropdownMenuItem(value: 'status', child: Text("Status")),
-                                    ],
-                                    onChanged: (val) => controller.sortBy.value = val ?? 'date-desc',
-                                  )),
-                                ],
-                              ),
-                            )
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  
                   // Orders Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Obx(() => TextWidget(text: "Recent Orders (${controller.filteredAndSortedOrders.length})", fontSize: context.scale(16), fontWeight: FontWeight.bold)),
-                      Row(
-                        children: [
-                          Icon(Icons.filter_list, size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
-                          TextWidget(text: "Filtered", color: Colors.grey, fontSize: context.scale(12)),
-                        ],
-                      )
-                    ],
-                  ),
-                  SizedBox(height: 12),
+                  Obx(() => TextWidget(
+                    text: "Recent Orders (${controller.filteredAndSortedOrders.length})", 
+                    fontSize: context.scale(16), 
+                    fontWeight: FontWeight.bold
+                  )),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -255,9 +165,9 @@ class _DashboardMobileState extends State<DashboardMobile> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
                       TextWidget(text: "No orders found", fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
-                      TextWidget(text: "Try adjusting your search criteria", color: Colors.grey),
+                      const TextWidget(text: "Try adjusting your search criteria", color: Colors.grey),
                     ],
                   ),
                 ),
@@ -273,13 +183,13 @@ class _DashboardMobileState extends State<DashboardMobile> {
                     return GestureDetector(
                       onTap: () => _showOrderDetails(order),
                       child: Container(
-                        margin: EdgeInsets.only(bottom: 12),
-                        padding: EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
                         ),
                         child: Row(
                           children: [
@@ -290,17 +200,17 @@ class _DashboardMobileState extends State<DashboardMobile> {
                                   Row(
                                     children: [
                                       TextWidget(text: order.orderNo, fontWeight: FontWeight.bold),
-                                      SizedBox(width: 12),
+                                      const SizedBox(width: 12),
                                       _buildStatusBadge(order.status),
                                     ],
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   TextWidget(text: "${order.items.length} items", color: Colors.grey.shade600, fontSize: context.scale(12)),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Icon(Icons.calendar_today, size: 12, color: Colors.grey),
-                                      SizedBox(width: 4),
+                                      const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                                      const SizedBox(width: 4),
                                       TextWidget(text: "${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}", color: Colors.grey, fontSize: context.scale(10)),
                                     ],
                                   )
@@ -314,23 +224,23 @@ class _DashboardMobileState extends State<DashboardMobile> {
                               children: [
                                 TextButton.icon(
                                   onPressed: () => _showOrderDetails(order),
-                                  icon: Icon(Icons.remove_red_eye, size: 16),
-                                  label: Text("View"),
-                                  style: TextButton.styleFrom(foregroundColor: Colors.indigo, padding: EdgeInsets.symmetric(horizontal: 8)),
+                                  icon: const Icon(Icons.remove_red_eye, size: 16),
+                                  label: const Text("View"),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.indigo, padding: const EdgeInsets.symmetric(horizontal: 8)),
                                 ),
-                                if (order.status == 'pending')
+                                if (order.status == 'confirmed')
                                   TextButton.icon(
                                     onPressed: () => _showCancelDialog(order.id),
-                                    icon: Icon(Icons.delete_outline, size: 16),
-                                    label: Text("Cancel"),
-                                    style: TextButton.styleFrom(foregroundColor: Colors.red, padding: EdgeInsets.symmetric(horizontal: 8)),
+                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                    label: const Text("Cancel"),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   ),
                                 if (order.status == 'processing')
                                   TextButton.icon(
                                     onPressed: () => controller.updateOrderStatus(order.id, 'completed'),
-                                    icon: Icon(Icons.check_circle_outline, size: 16),
-                                    label: Text("Complete"),
-                                    style: TextButton.styleFrom(foregroundColor: Colors.green, padding: EdgeInsets.symmetric(horizontal: 8)),
+                                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                                    label: const Text("Complete"),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 8)),
                                   )
                               ],
                             )
@@ -363,7 +273,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
         children: [
           Align(
             alignment: Alignment.topRight,
-            child: Icon(icon, color: color.withOpacity(0.8), size: 28),
+            child: Icon(icon, color: color.withValues(alpha: 0.8), size: 28),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,10 +294,9 @@ class _DashboardMobileState extends State<DashboardMobile> {
     IconData icon;
     
     switch(status) {
-      case 'completed': bg = Colors.green.shade100; fg = Colors.green.shade800; icon = Icons.check_circle; break;
+      case 'completed': bg = Colors.teal.shade100; fg = Colors.teal.shade800; icon = Icons.check_circle; break;
       case 'processing': bg = Colors.blue.shade100; fg = Colors.blue.shade800; icon = Icons.loop; break;
-      case 'pending': bg = Colors.amber.shade100; fg = Colors.amber.shade800; icon = Icons.pending_actions; break;
-      case 'cancelled': bg = Colors.red.shade100; fg = Colors.red.shade800; icon = Icons.cancel; break;
+      case 'confirmed': bg = Colors.green.shade100; fg = Colors.green.shade800; icon = Icons.verified; break;
       default: bg = Colors.grey.shade100; fg = Colors.grey.shade800; icon = Icons.info; break;
     }
 
@@ -410,7 +319,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Order Details - ${order.orderNo}"),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: Column(
             mainAxisSize: MainAxisSize.min,

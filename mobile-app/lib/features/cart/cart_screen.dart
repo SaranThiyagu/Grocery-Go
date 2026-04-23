@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loginapp/core/app/controllers/order_controller.dart';
-import 'package:loginapp/core/utils/colors.dart';
 import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -64,7 +64,7 @@ class CartScreenMobile extends StatelessWidget {
           );
         }
 
-        double totalAmount = controller.cart.fold(0, (sum, item) => sum + (item.product.price * item.quantity));
+        double totalAmount = controller.cart.fold(0.0, (sum, item) => sum + item.total);
 
         return Column(
           children: [
@@ -88,7 +88,7 @@ class CartScreenMobile extends StatelessWidget {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
                               image: DecorationImage(
-                                image: NetworkImage(item.product.image),
+                                image: CachedNetworkImageProvider(item.productImage),
                                 fit: BoxFit.cover,
                                 onError: (_, __) => const SizedBox(),
                               ),
@@ -100,14 +100,14 @@ class CartScreenMobile extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 TextWidget(
-                                  text: item.product.name,
+                                  text: item.productName,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                   maxLines: 1,
                                 ),
                                 const SizedBox(height: 4),
                                 TextWidget(
-                                  text: "₹${item.product.price.toStringAsFixed(2)} x ${item.quantity}",
+                                  text: "₹${item.productPrice.toStringAsFixed(2)} x ${item.quantity}",
                                   color: Colors.grey.shade600,
                                   fontSize: 12,
                                 ),
@@ -115,7 +115,7 @@ class CartScreenMobile extends StatelessWidget {
                             ),
                           ),
                           TextWidget(
-                            text: "₹${(item.product.price * item.quantity).toStringAsFixed(2)}",
+                            text: "₹${item.total.toStringAsFixed(2)}",
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                             color: Colors.blue.shade600,

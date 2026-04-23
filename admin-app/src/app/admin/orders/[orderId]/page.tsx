@@ -44,6 +44,12 @@ interface Order {
   userName: string;
   userEmail: string;
   userAvatar?: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerStoreName?: string | null;
+  customerMobile?: string | null;
+  customerEmail?: string | null;
+  customerType?: string | null;
   totalAmount: number;
   status: string;
   createdAt: string;
@@ -275,8 +281,26 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
           {/* Left: Order Summary */}
           <div className="space-y-6">
             {/* Customer */}
-            <div className="bg-white rounded-2xl border border-slate-200/60 premium-shadow p-5">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 mb-4">Customer</h3>
+            <div
+              className={`bg-white rounded-2xl border border-slate-200/60 premium-shadow p-5 transition-all ${
+                order.customerId
+                  ? 'cursor-pointer hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-500/10 group'
+                  : ''
+              }`}
+              onClick={() => {
+                if (order.customerId) {
+                  router.push(`/admin/customers/${order.customerId}/edit`);
+                }
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Customer</h3>
+                {order.customerId && (
+                  <span className="text-[11px] font-medium text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    View Profile →
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
                   <span className="text-[13px] font-bold text-indigo-600">
@@ -284,19 +308,46 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[14px] font-medium text-slate-900">{order.userName}</p>
-                  <p className="text-[12px] text-slate-500 truncate">{order.userEmail}</p>
+                  <p className="text-[14px] font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">{order.userName}</p>
+                  {order.customerStoreName && (
+                    <p className="text-[12px] text-slate-500 truncate">{order.customerStoreName}</p>
+                  )}
+                  <p className="text-[12px] text-slate-400 truncate">
+                    {order.customerMobile || order.userEmail}
+                  </p>
                 </div>
               </div>
-              {order.userEmail && order.userEmail !== 'N/A' && (
-                <a
-                  href={`mailto:${order.userEmail}`}
-                  className="inline-flex items-center gap-1.5 text-[12px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  Send email
-                </a>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {order.customerType && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                    order.customerType === 'wholesale'
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200/50'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200/50'
+                  }`}>
+                    {order.customerType === 'wholesale' ? 'Wholesale' : 'Retail'}
+                  </span>
+                )}
+                {order.customerEmail && order.customerEmail !== 'N/A' && (
+                  <a
+                    href={`mailto:${order.customerEmail}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Email
+                  </a>
+                )}
+                {!order.customerEmail && order.userEmail && order.userEmail !== 'N/A' && (
+                  <a
+                    href={`mailto:${order.userEmail}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    Email
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Order Info */}

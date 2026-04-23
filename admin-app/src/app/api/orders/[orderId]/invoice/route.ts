@@ -16,13 +16,13 @@ const ALLOWED_TYPES = [
 // POST - Upload invoice for an order
 export async function POST(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getAuthenticatedUser();
     if (!user) return unauthorizedResponse();
 
-    const orderId = params.orderId;
+    const { orderId } = await params;
 
     // Verify order exists
     const { data: order, error: orderError } = await supabaseAdmin
@@ -123,13 +123,13 @@ export async function POST(
 // DELETE - Remove invoice from an order
 export async function DELETE(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const user = await getAuthenticatedUser();
     if (!user) return unauthorizedResponse();
 
-    const orderId = params.orderId;
+    const { orderId } = await params;
 
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')

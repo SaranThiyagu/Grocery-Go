@@ -41,6 +41,12 @@ export interface Order {
   userName: string;
   userEmail: string;
   userAvatar?: string;
+  customerId?: string | null;
+  customerName?: string | null;
+  customerStoreName?: string | null;
+  customerMobile?: string | null;
+  customerEmail?: string | null;
+  customerType?: string | null;
   totalAmount: number;
   status: string;
   createdAt: string;
@@ -164,13 +170,27 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium text-slate-900 truncate">{order.userName}</p>
-                  <p className="text-[12px] text-slate-500 truncate">{order.userEmail}</p>
+                  {order.customerStoreName && (
+                    <p className="text-[11px] text-slate-500 truncate">{order.customerStoreName}</p>
+                  )}
+                  <p className="text-[12px] text-slate-400 truncate">{order.customerMobile || order.userEmail}</p>
                 </div>
-                {order.userEmail && order.userEmail !== 'N/A' && (
-                  <a href={`mailto:${order.userEmail}`} className="p-1.5 rounded-md hover:bg-slate-100 transition-colors">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                  </a>
-                )}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {order.customerType && (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                      order.customerType === 'wholesale'
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-blue-50 text-blue-700'
+                    }`}>
+                      {order.customerType === 'wholesale' ? 'W' : 'R'}
+                    </span>
+                  )}
+                  {(order.customerEmail || (order.userEmail && order.userEmail !== 'N/A')) && (
+                    <a href={`mailto:${order.customerEmail || order.userEmail}`} className="p-1.5 rounded-md hover:bg-slate-100 transition-colors">
+                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                    </a>
+                  )}
+                </div>
               </div>
             </section>
 

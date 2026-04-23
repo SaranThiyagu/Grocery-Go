@@ -1,36 +1,14 @@
 import 'package:get/get.dart';
-
-class OrderItem {
-  final String productId;
-  final String name;
-  final int quantity;
-  final double price;
-
-  OrderItem({required this.productId, required this.name, required this.quantity, required this.price});
-}
-
-class OrderModel {
-  final String id;
-  final String orderNo;
-  final List<OrderItem> items;
-  final double totalAmount;
-  String status;
-  final DateTime createdAt;
-  DateTime updatedAt;
-
-  OrderModel({
-    required this.id,
-    required this.orderNo,
-    required this.items,
-    required this.totalAmount,
-    required this.status,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-}
+import 'package:loginapp/core/models/order_model.dart';
+import 'package:loginapp/core/repository/order_repository.dart';
 
 class DashboardController extends GetxController {
+  final OrderRepository _orderRepo = OrderRepository();
+
   final RxList<OrderModel> orders = <OrderModel>[].obs;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMore = true.obs;
+  int _currentPage = 0;
   
   final searchTerm = ''.obs;
   final statusFilter = 'all'.obs;
@@ -42,49 +20,39 @@ class DashboardController extends GetxController {
     _fetchOrders();
   }
 
-  void _fetchOrders() {
-    // Mock data based on React
-    final mockOrders = [
-      OrderModel(
-        id: '1',
-        orderNo: 'ORD#001',
-        items: [
-          OrderItem(productId: '1', name: 'Premium Laptop', quantity: 1, price: 1299.99),
-          OrderItem(productId: '2', name: 'Wireless Mouse', quantity: 2, price: 29.99)
-        ],
-        totalAmount: 1359.97,
-        status: 'completed',
-        createdAt: DateTime.parse('2024-01-15'),
-        updatedAt: DateTime.parse('2024-01-16'),
-      ),
-      OrderModel(
-        id: '2',
-        orderNo: 'ORD#002',
-        items: [
-          OrderItem(productId: '3', name: 'Mechanical Keyboard', quantity: 1, price: 149.99)
-        ],
-        totalAmount: 149.99,
-        status: 'processing',
-        createdAt: DateTime.parse('2024-01-18'),
-        updatedAt: DateTime.parse('2024-01-18'),
-      ),
-      OrderModel(
-        id: '3',
-        orderNo: 'ORD#003',
-        items: [
-          OrderItem(productId: '4', name: 'USB-C Hub', quantity: 3, price: 39.99),
-          OrderItem(productId: '5', name: 'Webcam HD', quantity: 1, price: 79.99)
-        ],
-        totalAmount: 199.96,
-        status: 'pending',
-        createdAt: DateTime.parse('2024-01-20'),
-        updatedAt: DateTime.parse('2024-01-20'),
-      )
-    ];
+  Future<void> _fetchOrders() async {
+    _currentPage = 0;
+    hasMore.value = true;
+    final result = await _orderRepo.fetchOrders(page: 0);
+    orders.value = result;
+    hasMore.value = result.length >= OrderRepository.pageSize;
+  }
 
-    Future.delayed(Duration(seconds: 1), () {
-      orders.value = mockOrders;
-    });
+  /// Load next page of orders.
+  Future<void> loadMore() async {
+    if (isLoadingMore.value || !hasMore.value) return;
+
+    isLoadingMore.value = true;
+    try {
+      _currentPage++;
+      final nextPage = await _orderRepo.fetchOrders(page: _currentPage);
+      if (nextPage.isEmpty) {
+        hasMore.value = false;
+      } else {
+        orders.addAll(nextPage);
+        hasMore.value = nextPage.length >= OrderRepository.pageSize;
+      }
+    } catch (_) {
+      _currentPage--;
+    } finally {
+      isLoadingMore.value = false;
+    }
+  }
+
+  /// Refresh orders from first page.
+  @override
+  Future<void> refresh() async {
+    await _fetchOrders();
   }
 
   List<OrderModel> get filteredAndSortedOrders {
@@ -122,6 +90,7 @@ class DashboardController extends GetxController {
 
   void cancelOrder(String orderId) {
     orders.removeWhere((o) => o.id == orderId);
+    _orderRepo.deleteOrder(orderId);
   }
 
   void updateOrderStatus(String orderId, String newStatus) {
@@ -131,14 +100,14 @@ class DashboardController extends GetxController {
       order.status = newStatus;
       order.updatedAt = DateTime.now();
       orders[index] = order; // trigger reactive update
+      _orderRepo.updateStatus(orderId, newStatus);
     }
   }
 
   int get orderCount => orders.length;
-  int get pendingCount => orders.where((o) => o.status == 'pending').length;
+  int get confirmedCount => orders.where((o) => o.status == 'confirmed').length;
   int get processingCount => orders.where((o) => o.status == 'processing').length;
   int get completedCount => orders.where((o) => o.status == 'completed').length;
-  int get cancelledCount => orders.where((o) => o.status == 'cancelled').length;
   double get totalSpent => orders.where((o) => o.status == 'completed').fold(0, (sum, order) => sum + order.totalAmount);
 
 }

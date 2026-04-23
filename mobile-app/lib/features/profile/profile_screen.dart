@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loginapp/core/app/controllers/dashboard_controller.dart';
 import 'package:loginapp/core/app/controllers/global_controller.dart';
-import 'package:loginapp/core/app/controllers/local_storage_controller.dart';
 import 'package:loginapp/core/app/controllers/order_controller.dart';
 import 'package:loginapp/core/utils/colors.dart';
 import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
+import 'package:loginapp/core/app/controllers/auth_controller.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
 import 'package:loginapp/core/utils/responsive_utils.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -78,28 +79,6 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
     });
   }
 
-  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 28),
-          SizedBox(height: 8),
-          TextWidget(text: count, fontSize: 20, fontWeight: FontWeight.bold, color: color),
-          SizedBox(height: 4),
-          TextWidget(text: title, fontSize: 12, color: Colors.grey.shade600),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return SafeAreaWidget(
@@ -126,7 +105,7 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
           IconButton(
             icon: Icon(Icons.logout, color: Colors.red.shade300),
             onPressed: () async {
-              await LocalStorage.logout();
+              Get.find<AuthController>().logout();
             },
           )
         ],
@@ -150,11 +129,12 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
                   children: [
                     Stack(
                       children: [
-                        CircleAvatar(
+                        Obx(() => CircleAvatar(
                           radius: 40,
                           backgroundColor: Colors.blue.shade600,
-                          child: Text(gc.name.value.isNotEmpty ? gc.name.value[0] : 'U', style: TextStyle(color: Colors.white, fontSize: 32)),
-                        ),
+                          backgroundImage: gc.picture.value.isNotEmpty ? CachedNetworkImageProvider(gc.picture.value) : null,
+                          child: gc.picture.value.isEmpty ? Text(gc.name.value.isNotEmpty ? gc.name.value[0] : 'U', style: TextStyle(color: Colors.white, fontSize: 32)) : null,
+                        )),
                         Positioned(
                           bottom: 0,
                           right: 0,
@@ -170,7 +150,7 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
                       ],
                     ),
                     SizedBox(height: 12),
-                    TextWidget(text: gc.name.value, fontSize: 20, fontWeight: FontWeight.bold),
+                    Obx(() => TextWidget(text: gc.name.value, fontSize: 20, fontWeight: FontWeight.bold)),
                     TextWidget(text: "Premium Customer", color: Colors.grey),
                     SizedBox(height: 8),
                     Container(
@@ -208,9 +188,9 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
                         ],
                       )
                     ] else ...[
-                      _buildInfoRow(Icons.person, gc.name.value),
-                      _buildInfoRow(Icons.email, gc.email.value),
-                      _buildInfoRow(Icons.phone, phoneCtrl.text),
+                      Obx(() => _buildInfoRow(Icons.person, gc.name.value)),
+                      Obx(() => _buildInfoRow(Icons.email, gc.email.value)),
+                      Obx(() => _buildInfoRow(Icons.phone, gc.mobile.value.isNotEmpty ? gc.mobile.value : phoneCtrl.text)),
                       _buildInfoRow(Icons.location_on, addressCtrl.text),
                       _buildInfoRow(Icons.calendar_today, "Member since Jan 2024"),
                     ]
@@ -219,6 +199,7 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
               ),
 
               SizedBox(height: 24),
+              /*
               // Stats
               Obx(() => GridView.count(
                 crossAxisCount: 2,
@@ -234,8 +215,10 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
                   _buildStatCard("Total Spent", "₹${dc.totalSpent.toStringAsFixed(0)}", Icons.currency_rupee, Colors.purple.shade600),
                 ],
               )),
+              */
 
               SizedBox(height: 24),
+              /*
               // Recent Orders
               Container(
                 width: double.infinity,
@@ -306,6 +289,7 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
                   ],
                 ),
               )
+              */
             ],
           ),
         ),
@@ -342,22 +326,6 @@ class _ProfileScreenMobileState extends State<ProfileScreenMobile> {
           Expanded(child: TextWidget(text: text, fontSize: 14)),
         ],
       ),
-    );
-  }
-
-  Widget _buildSmallStatus(String status) {
-    Color bg;
-    Color fg;
-    switch(status) {
-      case 'completed': bg = Colors.green.shade100; fg = Colors.green.shade800; break;
-      case 'processing': bg = Colors.blue.shade100; fg = Colors.blue.shade800; break;
-      case 'pending': bg = Colors.amber.shade100; fg = Colors.amber.shade800; break;
-      default: bg = Colors.grey.shade100; fg = Colors.grey.shade800; break;
-    }
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
-      child: Text(status.toUpperCase(), style: TextStyle(color: fg, fontSize: 8, fontWeight: FontWeight.bold)),
     );
   }
 }

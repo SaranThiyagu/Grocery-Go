@@ -1,40 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
-import 'package:loginapp/core/app/controllers/global_controller.dart';
-
-class Product {
-  final String id;
-  final String name;
-  final String description;
-  final double price;
-  final String image;
-  final String category;
-
-  Product({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.price,
-    required this.image,
-    required this.category,
-  });
-}
-
-class CartItem {
-  final Product product;
-  int quantity;
-
-  CartItem({required this.product, required this.quantity});
-}
+import 'package:loginapp/core/app/controllers/dashboard_controller.dart';
+import 'package:loginapp/core/models/product.dart';
+import 'package:loginapp/core/models/cart_item.dart';
+import 'package:loginapp/core/models/order_model.dart';
+import 'package:loginapp/core/repository/product_repository.dart';
+import 'package:loginapp/core/repository/order_repository.dart';
 
 class OrderController extends GetxController {
+  final ProductRepository _productRepo = ProductRepository();
+  final OrderRepository _orderRepo = OrderRepository();
+
   final RxList<Product> products = <Product>[].obs;
   final RxList<String> categories = <String>[].obs;
   
   final RxString searchTerm = ''.obs;
   final RxString selectedCategory = ''.obs;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMore = true.obs;
+  int _currentPage = 0;
   
   // Mapping productId to quantity to add
   final RxMap<String, int> quantities = <String, int>{}.obs;
@@ -45,92 +29,69 @@ class OrderController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _loadMockProducts();
+    fetchData();
   }
 
-  void _loadMockProducts() {
-    final mockData = [
-      Product(
-        id: '1',
-        name: 'Fresh Tomatoes',
-        price: 40.00,
-        description: 'Ripe and juicy tomatoes, perfect for curries and salads',
-        image: 'https://images.unsplash.com/photo-1546470427-1d1d3d1d7?w=300&h=200&fit=crop',
-        category: 'Vegetables'
-      ),
-      Product(
-        id: '2',
-        name: 'Onions',
-        price: 35.00,
-        description: 'Fresh red onions, essential for Indian cooking',
-        image: 'https://images.unsplash.com/photo-1528747247525-3d40b2445e?w=300&h=200&fit=crop',
-        category: 'Vegetables'
-      ),
-      Product(
-        id: '3',
-        name: 'Potatoes',
-        price: 30.00,
-        description: 'Fresh potatoes, versatile for all Indian dishes',
-        image: 'https://images.unsplash.com/photo-1518979132600-261b355a3b?w=300&h=200&fit=crop',
-        category: 'Vegetables'
-      ),
-      Product(
-        id: '7',
-        name: 'Mangoes',
-        price: 120.00,
-        description: 'Sweet and juicy Alphonso mangoes, king of fruits',
-        image: 'https://images.unsplash.com/photo-15532797639-cf84fade48b6?w=300&h=200&fit=crop',
-        category: 'Fruits'
-      ),
-      Product(
-        id: '8',
-        name: 'Bananas',
-        price: 40.00,
-        description: 'Fresh ripe bananas, rich in potassium',
-        image: 'https://images.unsplash.com/photo-1566398346732-9c4724e3f4?w=300&h=200&fit=crop',
-        category: 'Fruits'
-      ),
-      Product(
-        id: '13',
-        name: 'Toor Dal',
-        price: 80.00,
-        description: 'Split pigeon peas, perfect for dal makhani',
-        image: 'https://images.unsplash.com/photo-1596531493673-8c4e6d7c5?w=300&h=200&fit=crop',
-        category: 'Pulses'
-      ),
-      Product(
-        id: '17',
-        name: 'Turmeric Powder',
-        price: 35.00,
-        description: 'Pure turmeric powder, essential for Indian cooking',
-        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
-        category: 'Spices'
-      ),
-      Product(
-        id: '22',
-        name: 'Fresh Milk',
-        price: 55.00,
-        description: 'Pure and fresh cow milk, 1 liter pack',
-        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
-        category: 'Dairy'
-      ),
-    ];
+  Future<void> fetchData() async {
+    try {
+      _currentPage = 0;
+      hasMore.value = true;
 
-    products.value = mockData;
-    categories.value = [
-      'Vegetables',
-      'Fruits',
-      'Dairy',
-      'Grains',
-      'Spices',
-      'Snacks',
-      'Beverages',
-      'Household',
-      'Pulses'
-    ];
+      final loadedProducts = await _productRepo.fetchProducts(page: 0);
+      products.value = loadedProducts;
+      hasMore.value = loadedProducts.length >= ProductRepository.pageSize;
 
-    for (var prod in mockData) {
-      quantities[prod.id] = 1;
+      for (var prod in loadedProducts) {
+        quantities[prod.id] = 1;
+      }
+
+      final loadedCategories = await _productRepo.fetchCategories();
+      categories.value = loadedCategories;
+    } catch (e) {
+      // Offline fallback — load from cache
+      final cachedProducts = await _productRepo.getCachedProducts();
+      final cachedCategories = await _productRepo.getCachedCategories();
+
+      if (cachedProducts.isNotEmpty) {
+        products.value = cachedProducts;
+        categories.value = cachedCategories;
+        for (var prod in cachedProducts) {
+          quantities[prod.id] = 1;
+        }
+        Get.snackbar('Offline Mode', 'Showing cached products',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      } else {
+        Get.snackbar('Database Error', 'Failed to load data: $e', 
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
+      }
+    }
+  }
+
+  /// Load next page of products (called on scroll).
+  Future<void> loadMore() async {
+    if (isLoadingMore.value || !hasMore.value) return;
+
+    isLoadingMore.value = true;
+    try {
+      _currentPage++;
+      final nextPage = await _productRepo.fetchProducts(page: _currentPage);
+      if (nextPage.isEmpty) {
+        hasMore.value = false;
+      } else {
+        products.addAll(nextPage);
+        for (var prod in nextPage) {
+          quantities[prod.id] = 1;
+        }
+        hasMore.value = nextPage.length >= ProductRepository.pageSize;
+      }
+    } catch (_) {
+      _currentPage--;
+    } finally {
+      isLoadingMore.value = false;
     }
   }
 
@@ -152,70 +113,56 @@ class OrderController extends GetxController {
   void addToCart(Product product) {
     int qty = quantities[product.id] ?? 1;
     
-    // Check if item exists in cart
-    int index = cart.indexWhere((item) => item.product.id == product.id);
+    int index = cart.indexWhere((item) => item.productId == product.id);
     if (index >= 0) {
       cart[index].quantity += qty;
-      cart.refresh(); // Tells GetX to update UI
+      cart.refresh();
     } else {
-      cart.add(CartItem(product: product, quantity: qty));
+      cart.add(CartItem(
+        productId: product.id,
+        productName: product.name,
+        productImage: product.image,
+        productPrice: product.price,
+        quantity: qty,
+      ));
     }
-    // Reset quantity back to 1
     quantities[product.id] = 1;
     Get.snackbar(
       'Cart', 
       '${product.name} added to cart',
-      snackPosition: SnackPosition.BOTTOM
+      snackPosition: SnackPosition.BOTTOM,
     );
   }
 
   Future<void> confirmOrder() async {
     if (cart.isEmpty) return;
 
-    // Get user details
-    final gc = Get.find<GlobalController>();
-    final userEmail = gc.email.value;
-    final userName = gc.name.value;
-    
-    // Calculate total
-    double total = cart.fold(0, (sum, item) => sum + (item.product.price * item.quantity));
-    
-    // Prepare items string
-    String itemsList = cart.map((e) => "${e.quantity}x ${e.product.name}").join(", ");
+    double total = cart.fold(0.0, (sum, item) => sum + item.total);
 
     try {
-      // SMTP configuration
-      // IMPORTANT: Replace with your actual sender Gmail and App Password
-      // To get an App Password: go to your Google Account -> Security -> 2-Step Verification -> App passwords
-      final String username = 'mageshwaran11238@gmail.com';
-      final String password = 'Magesh@8754314929'; // Must be a 16-character App Password, not your normal password
-
-      final smtpServer = gmail(username, password);
-
-      // Create the email message
-      final message = Message()
-        ..from = Address(username, 'Indian Grocery Store')
-        ..recipients.add('mageshwaran11238@gmail.com') // Hardcoded per user request
-        ..subject = 'Order Confirmation - Indian Grocery Store'
-        ..html = '''
-          <h1>Order Confirmed!</h1>
-          <p>Hi ${userName.isEmpty ? 'Customer' : userName},</p>
-          <p>Your order has been confirmed successfully!</p>
-          <h3>Order Summary</h3>
-          <p>$itemsList</p>
-          <h3>Total Amount: ₹${total.toStringAsFixed(2)}</h3>
-          <br>
-          <p>Thank you for shopping with us!</p>
-        ''';
-
-      // Send the email
-      await send(message, smtpServer);
-
+      final dc = Get.find<DashboardController>();
+      final newOrder = OrderModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        orderNo: 'ORD#${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+        items: cart.map((item) => OrderItem(
+          productId: item.productId,
+          name: item.productName,
+          quantity: item.quantity,
+          price: item.productPrice,
+        )).toList(),
+        totalAmount: total,
+        status: 'confirmed',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      
+      dc.orders.insert(0, newOrder);
+      _orderRepo.createOrder(newOrder);
       cart.clear();
       
       Get.defaultDialog(
         title: "Order Confirmed",
-        middleText: "Your order has been confirmed! An email has been successfully sent via SMTP to mageshwaran11238@gmail.com.",
+        middleText: "Your order has been confirmed!",
         textConfirm: "OK",
         confirmTextColor: Colors.white,
         buttonColor: Colors.green,
@@ -227,7 +174,7 @@ class OrderController extends GetxController {
     } catch (e) {
       Get.snackbar(
         'Error', 
-        'Failed to send email. Make sure you set a valid Gmail App Password in OrderController. Error: $e',
+        'Failed to confirm order. Error: $e',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red.shade100,
         colorText: Colors.red.shade900,
