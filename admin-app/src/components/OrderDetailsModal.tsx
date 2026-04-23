@@ -77,7 +77,7 @@ export default function OrderDetailsModal({ order, isOpen, onClose }: OrderDetai
           {/* Order Header */}
           <div className="flex items-center space-x-4 pb-4">
             <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-amber-500 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">OF</span>
+              <span className="text-white font-bold text-2xl">GG</span>
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Order #{order.id}</h3>

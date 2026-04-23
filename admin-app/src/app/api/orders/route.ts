@@ -65,15 +65,19 @@ export async function GET() {
                 createdAt: order.created_at,
                 updatedAt: order.updated_at,
                 invoiceUrl: order.invoice_url || undefined,
-                items: (order.order_items || []).map((item: any) => ({
-                    id: item.id.toString(),
-                    productId: item.product_id,
-                    productName: item.products?.name || item.name,
-                    productPrice: item.price,
-                    productImage: item.products?.image,
-                    quantity: item.quantity,
-                    total: item.price * item.quantity,
-                })),
+                items: (order.order_items || []).map((item: any) => {
+                    const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
+                    return {
+                        id: item.id.toString(),
+                        productId: item.product_id,
+                        productName: item.products?.name || item.name,
+                        productPrice: item.price,
+                        productImage: item.products?.image,
+                        quantity: item.quantity,
+                        total: item.price * item.quantity,
+                        size: item.size || sizeMatch?.[1] || null,
+                    };
+                }),
             };
         });
 

@@ -33,6 +33,7 @@ export interface OrderItem {
   productImage?: string;
   quantity: number;
   total: number;
+  size?: string | null;
 }
 
 export interface Order {

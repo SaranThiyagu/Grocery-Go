@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OrderFlow Admin - Customer Order Management",
+  title: "Grocery-Go Admin - Customer Order Management",
   description: "Professional admin panel for managing customer orders, products, and users. Built with Next.js and Supabase.",
-  keywords: ["OrderFlow", "Admin Panel", "Order Management", "Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
-  authors: [{ name: "OrderFlow Team" }],
+  keywords: ["Grocery-Go", "Admin Panel", "Order Management", "Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
+  authors: [{ name: "Grocery-Go Team" }],
   icons: {
     icon: "/icon-192x192.png",
     apple: "/icon-192x192.png",
@@ -26,16 +26,16 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "OrderFlow Admin",
+    title: "Grocery-Go Admin",
   },
   openGraph: {
-    title: "OrderFlow Admin Panel",
+    title: "Grocery-Go Admin Panel",
     description: "Professional customer order management system",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "OrderFlow Admin Panel",
+    title: "Grocery-Go Admin Panel",
     description: "Professional customer order management system",
   },
 };

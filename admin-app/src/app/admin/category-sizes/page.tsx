@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,7 +17,6 @@ import {
     Package, X, Check, ArrowLeft, AlertTriangle, Zap,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import TopNav from '@/components/admin/TopNav';
 
 interface Category {
     id: number;
@@ -117,7 +116,6 @@ function detectUnitSystem(sizes: CategorySize[]): string {
 export default function CategorySizesPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
     const [categories, setCategories] = useState<Category[]>([]);
     const [sizes, setSizes] = useState<CategorySize[]>([]);
     const [loading, setLoading] = useState(true);
@@ -146,15 +144,6 @@ export default function CategorySizesPage() {
     const [inlineSaving, setInlineSaving] = useState(false);
 
     useEffect(() => {
-        const supabase = createClient();
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                setCurrentUser({
-                    email: user.email || '',
-                    displayName: user.email?.split('@')[0] || 'Admin',
-                });
-            }
-        });
         fetchData();
     }, []);
 
@@ -347,8 +336,7 @@ export default function CategorySizesPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F8FAFC]">
-                <TopNav currentUser={currentUser} />
+            <div>
                 <div className="flex items-center justify-center py-32">
                     <div className="flex flex-col items-center gap-3">
                         <div className="relative">
@@ -371,10 +359,7 @@ export default function CategorySizesPage() {
     const currentPresets = formType === 'retail' ? availablePresets.retail : availablePresets.wholesale;
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <TopNav currentUser={currentUser} />
-
-            <main className="max-w-[1200px] mx-auto px-6 py-8">
+        <main className="max-w-[1200px] mx-auto px-6 py-8">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
@@ -715,7 +700,6 @@ export default function CategorySizesPage() {
                         })}
                     </div>
                 )}
-            </main>
 
             {/* Delete Confirmation */}
             <AlertDialog open={deleteId !== null} onOpenChange={() => { setDeleteId(null); setDeleteLabel(''); }}>
@@ -739,7 +723,7 @@ export default function CategorySizesPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </main>
     );
 }
 

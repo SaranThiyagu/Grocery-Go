@@ -2,12 +2,10 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import {
     Loader2, Package, Calendar, ShoppingBag, TrendingUp,
     ArrowRight, Clock, ArrowLeft,
 } from 'lucide-react';
-import TopNav from '@/components/admin/TopNav';
 import CustomerForm, { CustomerFormData } from '@/components/admin/CustomerForm';
 import { StatusBadge } from '@/components/admin/OrderDrawer';
 
@@ -36,25 +34,12 @@ interface CustomerStats {
 export default function EditCustomerPage({ params }: { params: Promise<{ customerId: string }> }) {
     const { customerId } = use(params);
     const router = useRouter();
-    const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
     const [initialData, setInitialData] = useState<CustomerFormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
     const [stats, setStats] = useState<CustomerStats | null>(null);
     const [ordersLoading, setOrdersLoading] = useState(true);
-
-    useEffect(() => {
-        const supabase = createClient();
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                setCurrentUser({
-                    email: user.email || '',
-                    displayName: user.email?.split('@')[0] || 'Admin',
-                });
-            }
-        });
-    }, []);
 
     useEffect(() => {
         (async () => {
@@ -127,21 +112,18 @@ export default function EditCustomerPage({ params }: { params: Promise<{ custome
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F8FAFC]">
-                <TopNav currentUser={currentUser} />
-                <div className="flex items-center justify-center py-32">
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="relative">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                                <span className="text-white font-bold text-[11px]">CX</span>
-                            </div>
-                            <div className="absolute inset-0 rounded-2xl bg-indigo-500 animate-ping opacity-15" />
+            <div className="flex items-center justify-center py-32">
+                <div className="flex flex-col items-center gap-3">
+                    <div className="relative">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                            <span className="text-white font-bold text-[11px]">CX</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:0ms]" />
-                            <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:150ms]" />
-                            <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:300ms]" />
-                        </div>
+                        <div className="absolute inset-0 rounded-2xl bg-indigo-500 animate-ping opacity-15" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:0ms]" />
+                        <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:150ms]" />
+                        <div className="w-1 h-1 rounded-full bg-slate-300 animate-bounce [animation-delay:300ms]" />
                     </div>
                 </div>
             </div>
@@ -150,20 +132,17 @@ export default function EditCustomerPage({ params }: { params: Promise<{ custome
 
     if (error || !initialData) {
         return (
-            <div className="min-h-screen bg-[#F8FAFC]">
-                <TopNav currentUser={currentUser} />
-                <div className="flex flex-col items-center justify-center py-32">
-                    <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-3">
-                        <Package className="h-5 w-5 text-red-400" />
-                    </div>
-                    <p className="text-[14px] font-medium text-slate-600 mb-1">{error || 'Customer not found'}</p>
-                    <button
-                        onClick={() => router.push('/admin/customers')}
-                        className="mt-3 text-[13px] font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer"
-                    >
-                        Back to Customers
-                    </button>
+            <div className="flex flex-col items-center justify-center py-32">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-3">
+                    <Package className="h-5 w-5 text-red-400" />
                 </div>
+                <p className="text-[14px] font-medium text-slate-600 mb-1">{error || 'Customer not found'}</p>
+                <button
+                    onClick={() => router.push('/admin/customers')}
+                    className="mt-3 text-[13px] font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                >
+                    Back to Customers
+                </button>
             </div>
         );
     }
@@ -299,10 +278,7 @@ export default function EditCustomerPage({ params }: { params: Promise<{ custome
     );
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-            <TopNav currentUser={currentUser} />
-
-            <main className="max-w-[1200px] mx-auto px-6 py-8">
+        <main className="max-w-[1200px] mx-auto px-6 py-8">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-8">
                     <button
@@ -327,6 +303,5 @@ export default function EditCustomerPage({ params }: { params: Promise<{ custome
                     rightPanelContent={rightPanelContent}
                 />
             </main>
-        </div>
     );
 }

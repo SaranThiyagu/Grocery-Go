@@ -42,18 +42,16 @@ interface ProductFormProps {
     onSubmitSuccess?: () => void;
 }
 
-const DEFAULT_RETAIL_SUGGESTIONS = ['50ml', '100ml', '200ml', '500ml', '1L'];
-const DEFAULT_WHOLESALE_SUGGESTIONS = ['1L', '5L', '10L'];
-
 export default function ProductForm({ mode, initialData, onSubmitSuccess }: ProductFormProps) {
     const router = useRouter();
     const [categories, setCategories] = useState<Category[]>([]);
     const [brands, setBrands] = useState<Brand[]>([]);
-    const [retailSuggestions, setRetailSuggestions] = useState<string[]>(DEFAULT_RETAIL_SUGGESTIONS);
-    const [wholesaleSuggestions, setWholesaleSuggestions] = useState<string[]>(DEFAULT_WHOLESALE_SUGGESTIONS);
+    const [retailSuggestions, setRetailSuggestions] = useState<string[]>([]);
+    const [wholesaleSuggestions, setWholesaleSuggestions] = useState<string[]>([]);
     const [brandOpen, setBrandOpen] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loadingSizes, setLoadingSizes] = useState(false);
     const [errors, setErrors] = useState<{ retailSizes?: string; wholesaleSizes?: string }>({});
     const [formData, setFormData] = useState<ProductFormData>({
         name: '',
@@ -84,19 +82,26 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
 
     // Fetch size suggestions when category changes
     useEffect(() => {
+        // Clear previous suggestions and selected sizes immediately on category change
+        setRetailSuggestions([]);
+        setWholesaleSuggestions([]);
+        setFormData(prev => ({ ...prev, retailSizes: [], wholesaleSizes: [] }));
+
+        if (!formData.categoryId) return;
+
+        setLoadingSizes(true);
         (async () => {
             try {
-                const url = formData.categoryId
-                    ? `/api/products/sizes?categoryId=${formData.categoryId}`
-                    : '/api/products/sizes';
-                const sizesRes = await fetch(url);
+                const sizesRes = await fetch(`/api/products/sizes?categoryId=${formData.categoryId}`);
                 if (sizesRes.ok) {
                     const sizesData = await sizesRes.json();
-                    setRetailSuggestions(sizesData.retail?.length > 0 ? sizesData.retail : DEFAULT_RETAIL_SUGGESTIONS);
-                    setWholesaleSuggestions(sizesData.wholesale?.length > 0 ? sizesData.wholesale : DEFAULT_WHOLESALE_SUGGESTIONS);
+                    setRetailSuggestions(sizesData.retail || []);
+                    setWholesaleSuggestions(sizesData.wholesale || []);
                 }
             } catch (error) {
                 console.error('Error fetching size suggestions:', error);
+            } finally {
+                setLoadingSizes(false);
             }
         })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -355,16 +360,28 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                     </Label>
                                     <p className="text-[11px] text-slate-400 mt-0.5">Small quantities for individual customers</p>
                                 </div>
-                                <TagInput
-                                    values={formData.retailSizes}
-                                    onChange={(sizes) => {
-                                        setFormData({ ...formData, retailSizes: sizes });
-                                        if (sizes.length > 0) setErrors(prev => ({ ...prev, retailSizes: undefined }));
-                                    }}
-                                    suggestions={retailSuggestions}
-                                    placeholder={`Type size and press Enter (e.g., ${retailSuggestions[0] || '250ml'})`}
-                                    hasError={!!errors.retailSizes}
-                                />
+                                {loadingSizes ? (
+                                    <div className="flex items-center gap-2 py-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
+                                        <span className="text-[12px] text-slate-400">Loading sizes...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <TagInput
+                                            values={formData.retailSizes}
+                                            onChange={(sizes) => {
+                                                setFormData({ ...formData, retailSizes: sizes });
+                                                if (sizes.length > 0) setErrors(prev => ({ ...prev, retailSizes: undefined }));
+                                            }}
+                                            suggestions={retailSuggestions}
+                                            placeholder="Type size and press Enter (e.g., 100g)"
+                                            hasError={!!errors.retailSizes}
+                                        />
+                                        {!formData.categoryId && (
+                                            <p className="text-[11px] text-amber-500">Select a category to see suggested sizes</p>
+                                        )}
+                                    </>
+                                )}
                                 {errors.retailSizes && (
                                     <p className="text-[12px] text-red-500">{errors.retailSizes}</p>
                                 )}
@@ -380,16 +397,28 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                     </Label>
                                     <p className="text-[11px] text-slate-400 mt-0.5">Bulk quantities for business customers</p>
                                 </div>
-                                <TagInput
-                                    values={formData.wholesaleSizes}
-                                    onChange={(sizes) => {
-                                        setFormData({ ...formData, wholesaleSizes: sizes });
-                                        if (sizes.length > 0) setErrors(prev => ({ ...prev, wholesaleSizes: undefined }));
-                                    }}
-                                    suggestions={wholesaleSuggestions}
-                                    placeholder={`Type size and press Enter (e.g., ${wholesaleSuggestions[0] || '20L'})`}
-                                    hasError={!!errors.wholesaleSizes}
-                                />
+                                {loadingSizes ? (
+                                    <div className="flex items-center gap-2 py-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
+                                        <span className="text-[12px] text-slate-400">Loading sizes...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <TagInput
+                                            values={formData.wholesaleSizes}
+                                            onChange={(sizes) => {
+                                                setFormData({ ...formData, wholesaleSizes: sizes });
+                                                if (sizes.length > 0) setErrors(prev => ({ ...prev, wholesaleSizes: undefined }));
+                                            }}
+                                            suggestions={wholesaleSuggestions}
+                                            placeholder="Type size and press Enter (e.g., 5kg)"
+                                            hasError={!!errors.wholesaleSizes}
+                                        />
+                                        {!formData.categoryId && (
+                                            <p className="text-[11px] text-amber-500">Select a category to see suggested sizes</p>
+                                        )}
+                                    </>
+                                )}
                                 {errors.wholesaleSizes && (
                                     <p className="text-[12px] text-red-500">{errors.wholesaleSizes}</p>
                                 )}

@@ -95,7 +95,7 @@ export async function sendOrderCompletionEmail(orderData: OrderEmailData) {
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 14px;">
               <p>This is an automated email. Please do not reply to this message.</p>
-              <p style="margin-top: 10px;">© ${new Date().getFullYear()} OrderFlow. All rights reserved.</p>
+              <p style="margin-top: 10px;">© ${new Date().getFullYear()} Grocery-Go. All rights reserved.</p>
             </div>
           </div>
         </body>
@@ -103,9 +103,9 @@ export async function sendOrderCompletionEmail(orderData: OrderEmailData) {
     `;
 
         const mailOptions = {
-            from: `"OrderFlow" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+            from: `"Grocery-Go" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
             to: orderData.customerEmail,
-            subject: `Order #${orderData.orderId} Delivered - OrderFlow`,
+            subject: `Order #${orderData.orderId} Delivered - Grocery-Go`,
             html: emailHtml,
         };
 

@@ -24,8 +24,6 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@/lib/supabase/client';
-import TopNav from '@/components/admin/TopNav';
 import { StatusBadge } from '@/components/admin/OrderDrawer';
 
 interface OrderItem {
@@ -36,6 +34,7 @@ interface OrderItem {
   productImage?: string;
   quantity: number;
   total: number;
+  size?: string | null;
 }
 
 interface Order {
@@ -73,19 +72,8 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [updating, setUpdating] = useState(false);
   const [comment, setComment] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        setCurrentUser({
-          email: user.email || '',
-          displayName: user.email?.split('@')[0] || 'Admin',
-        });
-      }
-    });
-
     fetchOrder();
   }, [orderId]);
 
@@ -190,11 +178,12 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
     const rows = order.items.map((item) => ({
       'Product ID': item.productId,
       'Product Name': item.productName,
+      'Size': item.size || '',
       'Qty': item.quantity,
     }));
-    rows.push({ 'Product ID': '', 'Product Name': 'Total', 'Qty': order.items.reduce((s, i) => s + i.quantity, 0) });
+    rows.push({ 'Product ID': '', 'Product Name': 'Total', 'Size': '', 'Qty': order.items.reduce((s, i) => s + i.quantity, 0) });
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 8 }];
+    ws['!cols'] = [{ wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Order Items');
     XLSX.writeFile(wb, `Order-${order.id}.xlsx`);
@@ -202,11 +191,11 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-32">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <span className="text-white font-bold text-[10px] tracking-tight">OF</span>
+              <span className="text-white font-bold text-[10px] tracking-tight">GG</span>
             </div>
             <div className="absolute inset-0 rounded-xl bg-indigo-500 animate-ping opacity-15" />
           </div>
@@ -222,8 +211,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-background">
-        <TopNav currentUser={currentUser} />
+      <div>
         <div className="flex flex-col items-center justify-center py-32">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-3">
             <Package className="h-5 w-5 text-slate-400" />
@@ -243,10 +231,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <TopNav currentUser={currentUser} />
-
-      <main className="max-w-[1000px] mx-auto px-6 py-8">
+    <main className="max-w-[1000px] mx-auto px-6 py-8">
         {/* Back + Title */}
         <div className="flex items-center gap-3 mb-8">
           <button
@@ -533,6 +518,11 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-[14px] font-medium text-slate-900">{item.productName}</h4>
+                      {item.size && (
+                        <span className="inline-block mt-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                          {item.size}
+                        </span>
+                      )}
                     </div>
                     <span className="text-[14px] font-semibold tabular-nums text-slate-900 flex-shrink-0">
                       Qty: {item.quantity}
@@ -551,6 +541,5 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
           </div>
         </div>
       </main>
-    </div>
   );
 }

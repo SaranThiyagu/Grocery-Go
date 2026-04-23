@@ -1,29 +1,14 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Loader2 } from 'lucide-react';
-import TopNav from '@/components/admin/TopNav';
 import ProductForm, { ProductFormData } from '@/components/admin/ProductForm';
 
 export default function EditProductPage({ params }: { params: Promise<{ productId: string }> }) {
     const { productId } = use(params);
-    const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
     const [initialData, setInitialData] = useState<ProductFormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        const supabase = createClient();
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                setCurrentUser({
-                    email: user.email || '',
-                    displayName: user.email?.split('@')[0] || 'Admin',
-                });
-            }
-        });
-    }, []);
 
     useEffect(() => {
         (async () => {
@@ -55,13 +40,10 @@ export default function EditProductPage({ params }: { params: Promise<{ productI
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background">
-                <TopNav currentUser={currentUser} />
-                <div className="flex items-center justify-center py-32">
-                    <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
-                        <p className="text-[13px] text-slate-500">Loading product...</p>
-                    </div>
+            <div className="flex items-center justify-center py-32">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
+                    <p className="text-[13px] text-slate-500">Loading product...</p>
                 </div>
             </div>
         );
@@ -69,31 +51,24 @@ export default function EditProductPage({ params }: { params: Promise<{ productI
 
     if (error || !initialData) {
         return (
-            <div className="min-h-screen bg-background">
-                <TopNav currentUser={currentUser} />
-                <div className="flex items-center justify-center py-32">
-                    <p className="text-[14px] text-red-600">{error || 'Product not found'}</p>
-                </div>
+            <div className="flex items-center justify-center py-32">
+                <p className="text-[14px] text-red-600">{error || 'Product not found'}</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <TopNav currentUser={currentUser} />
+        <main className="max-w-[1280px] mx-auto px-6 py-8">
+            <div className="mb-8">
+                <h1 className="text-[26px] font-bold text-slate-900 tracking-[-0.02em]">
+                    Edit Product
+                </h1>
+                <p className="text-[13px] text-slate-500 mt-1">
+                    Update product details and packaging options.
+                </p>
+            </div>
 
-            <main className="max-w-[1440px] mx-auto px-6 py-8">
-                <div className="mb-8">
-                    <h1 className="text-[26px] font-bold text-slate-900 tracking-[-0.02em]">
-                        Edit Product
-                    </h1>
-                    <p className="text-[13px] text-slate-500 mt-1">
-                        Update product details and packaging options.
-                    </p>
-                </div>
-
-                <ProductForm mode="edit" initialData={initialData} />
-            </main>
-        </div>
+            <ProductForm mode="edit" initialData={initialData} />
+        </main>
     );
 }

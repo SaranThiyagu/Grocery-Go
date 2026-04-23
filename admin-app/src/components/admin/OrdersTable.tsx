@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, Inbox, FileCheck, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Inbox, FileCheck, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
 import { type Order, StatusBadge } from './OrderDrawer';
 
 interface OrdersTableProps {
@@ -17,21 +17,12 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
 }
 
-function formatRelativeDate(dateString: string) {
+function formatDate(dateString: string) {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-  });
+  return {
+    date: date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    time: date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+  };
 }
 
 export default function OrdersTable({ orders, allOrdersCount, filteredCount, currentPage, totalPages, pageSize, onPageChange, onPageSizeChange, onOrderClick }: OrdersTableProps) {
@@ -42,14 +33,14 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Order</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Order ID</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Customer</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Items</th>
-              <th className="text-right text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Qty</th>
+              <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-3 py-3">Qty</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Status</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Date</th>
-              <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-2 py-3">Bill</th>
-              <th className="px-5 py-3 w-8"></th>
+              <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-3 py-3">Bill</th>
+              <th className="px-3 py-3 w-10"></th>
             </tr>
           </thead>
           <tbody>
@@ -62,6 +53,7 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
             ) : (
               orders.map((order) => {
                 const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
+                const { date, time } = formatDate(order.createdAt);
                 return (
                   <tr
                     key={order.id}
@@ -92,30 +84,38 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                       <div className="min-w-0">
                         <p className="text-[13px] text-slate-700 truncate max-w-[200px]">{order.items[0]?.productName || 'N/A'}</p>
                         <p className="text-[11px] text-slate-400">
-                          {order.items.length > 1 ? `+${order.items.length - 1} more · ` : ''}{totalQty} qty
+                          {order.items.length > 1 ? `+${order.items.length - 1} more · ` : ''}{order.items.length} item{order.items.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-3 py-3.5 text-center">
                       <span className="text-[13px] font-semibold tabular-nums text-slate-900">{totalQty}</span>
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge status={order.status} />
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="text-[12px] text-slate-400">{formatRelativeDate(order.createdAt)}</span>
+                      <div>
+                        <p className="text-[12px] text-slate-700">{date}</p>
+                        <p className="text-[11px] text-slate-400">{time}</p>
+                      </div>
                     </td>
-                    <td className="px-2 py-3.5 text-center">
+                    <td className="px-3 py-3.5 text-center">
                       {order.invoiceUrl ? (
                         <span title="Invoice uploaded" className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/60">
                           <FileCheck className="h-3.5 w-3.5 text-emerald-600" />
                         </span>
                       ) : (
-                        <span className="text-[11px] text-slate-300">&mdash;</span>
+                        <span className="text-[12px] text-slate-300">&mdash;</span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5">
-                      <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all duration-150" />
+                    <td className="px-3 py-3.5">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); }}
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -148,7 +148,7 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                       </div>
                       <div>
                         <p className="text-[13px] font-medium text-slate-900">{order.userName}</p>
-                        <p className="text-[11px] text-slate-400">#{order.id} · {formatRelativeDate(order.createdAt)}</p>
+                        <p className="text-[11px] text-slate-400">#{order.id} · {formatDate(order.createdAt).date}</p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-slate-300" />
@@ -177,46 +177,25 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
       {/* Footer with Pagination */}
       {filteredCount > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-3 border-t border-slate-100">
-          <div className="flex items-center gap-3">
-            <p className="text-[12px] text-slate-400">
-              Showing{' '}
-              <span className="font-medium text-slate-600">
-                {Math.min((currentPage - 1) * pageSize + 1, filteredCount)}–{Math.min(currentPage * pageSize, filteredCount)}
-              </span>{' '}
-              of <span className="font-medium text-slate-600">{filteredCount}</span>
-              {filteredCount !== allOrdersCount && (
-                <span className="text-slate-300"> (filtered from {allOrdersCount})</span>
-              )}
-            </p>
-            <div className="hidden sm:flex items-center gap-1.5">
-              <label className="text-[11px] text-slate-400">Rows:</label>
-              <select
-                value={pageSize}
-                onChange={e => onPageSizeChange(Number(e.target.value))}
-                className="h-7 text-[11px] px-1.5 pr-6 rounded-lg border border-slate-200 bg-white text-slate-600 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-300"
-              >
-                {[10, 25, 50, 100].map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <p className="text-[12px] text-slate-500">
+            Showing{' '}
+            <span className="font-semibold text-slate-700">
+              {Math.min((currentPage - 1) * pageSize + 1, filteredCount)}
+            </span>{' '}
+            to{' '}
+            <span className="font-semibold text-slate-700">
+              {Math.min(currentPage * pageSize, filteredCount)}
+            </span>{' '}
+            of <span className="font-semibold text-slate-700">{filteredCount}</span> orders
+          </p>
 
-          {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            {/* Page navigation */}
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => onPageChange(1)}
-                disabled={currentPage === 1}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="First page"
-              >
-                <ChevronsLeft className="h-3.5 w-3.5" />
-              </button>
               <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="Previous page"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer border border-slate-200"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
@@ -228,10 +207,10 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                   <button
                     key={page}
                     onClick={() => onPageChange(page as number)}
-                    className={`min-w-[28px] h-7 px-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer ${
+                    className={`min-w-[32px] h-8 px-2 rounded-lg text-[13px] font-medium transition-all cursor-pointer border ${
                       currentPage === page
-                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-500/25'
-                        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
                     {page}
@@ -242,21 +221,23 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
               <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="Next page"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer border border-slate-200"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
-              <button
-                onClick={() => onPageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="Last page"
-              >
-                <ChevronsRight className="h-3.5 w-3.5" />
-              </button>
             </div>
-          )}
+
+            {/* Per-page selector */}
+            <select
+              value={pageSize}
+              onChange={e => onPageSizeChange(Number(e.target.value))}
+              className="h-8 text-[12px] px-2 pr-7 rounded-lg border border-slate-200 bg-white text-slate-600 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            >
+              {[10, 25, 50, 100].map(n => (
+                <option key={n} value={n}>{n} / page</option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
     </>

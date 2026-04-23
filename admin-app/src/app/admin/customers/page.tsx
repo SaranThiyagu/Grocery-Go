@@ -33,8 +33,6 @@ import {
     Mail,
     MapPin,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import TopNav from '@/components/admin/TopNav';
 import StatCard from '@/components/admin/StatCard';
 import { type Customer } from '@/components/admin/CustomerDrawer';
 
@@ -46,7 +44,6 @@ export default function CustomersPage() {
     const [filterType, setFilterType] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterCity, setFilterCity] = useState('all');
-    const [currentUser, setCurrentUser] = useState<{ email: string; displayName: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -54,16 +51,6 @@ export default function CustomersPage() {
     const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
-        const supabase = createClient();
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-                setCurrentUser({
-                    email: user.email || '',
-                    displayName: user.email?.split('@')[0] || 'Admin',
-                });
-            }
-        });
-
         fetchCustomers();
     }, []);
 
@@ -154,11 +141,11 @@ export default function CustomersPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="flex items-center justify-center py-32">
                 <div className="flex flex-col items-center gap-3">
                     <div className="relative">
                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                            <span className="text-white font-bold text-[10px] tracking-tight">OF</span>
+                            <span className="text-white font-bold text-[10px] tracking-tight">GG</span>
                         </div>
                         <div className="absolute inset-0 rounded-xl bg-indigo-500 animate-ping opacity-15" />
                     </div>
@@ -173,10 +160,7 @@ export default function CustomersPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <TopNav currentUser={currentUser} />
-
-            <main className="max-w-[1440px] mx-auto px-6 py-8">
+        <main className="max-w-[1280px] mx-auto px-6 py-8">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
                     <div>
@@ -541,6 +525,5 @@ export default function CustomersPage() {
                 </AlertDialog>
 
             </main>
-        </div>
     );
 }

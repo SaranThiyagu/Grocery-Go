@@ -70,10 +70,10 @@ export default function LoginForm() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/25">
-            <span className="text-white font-bold text-base tracking-tight">OF</span>
+            <span className="text-white font-bold text-base tracking-tight">GG</span>
           </div>
           <h1 className="text-[22px] font-bold text-white tracking-[-0.02em]">Welcome back</h1>
-          <p className="text-sm text-slate-400 mt-1">Sign in to OrderFlow Admin</p>
+          <p className="text-sm text-slate-400 mt-1">Sign in to Grocery-Go Admin</p>
         </div>
 
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-xl p-8 premium-shadow-lg">
@@ -146,7 +146,7 @@ export default function LoginForm() {
         </div>
 
         <p className="text-center text-[12px] text-slate-600 mt-6">
-          Secure admin access &middot; OrderFlow
+          Secure admin access &middot; Grocery-Go
         </p>
       </div>
     </div>

@@ -142,6 +142,7 @@ export type Database = {
           price: number
           product_id: string | null
           quantity: number
+          size: string | null
         }
         Insert: {
           id?: number
@@ -150,6 +151,7 @@ export type Database = {
           price: number
           product_id?: string | null
           quantity: number
+          size?: string | null
         }
         Update: {
           id?: number
@@ -158,6 +160,7 @@ export type Database = {
           price?: number
           product_id?: string | null
           quantity?: number
+          size?: string | null
         }
         Relationships: [
           {
