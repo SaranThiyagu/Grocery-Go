@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import {
-  LayoutDashboard, ShoppingBag, Users, Package, Ruler,
+  LayoutDashboard, ShoppingBag, Users, Package, Ruler, Tag, Layers,
   Settings, LogOut, Bell, Menu, Search,
   PanelLeftClose, ChevronRight, Moon,
 } from 'lucide-react';
@@ -37,6 +37,8 @@ const navigation: NavSection[] = [
       { label: 'Orders', href: '/admin', icon: ShoppingBag, countKey: 'orders' },
       { label: 'Customers', href: '/admin/customers', icon: Users },
       { label: 'Products', href: '/admin/products', icon: Package },
+      { label: 'Brands', href: '/admin/brands', icon: Tag },
+      { label: 'Categories', href: '/admin/categories', icon: Layers },
       { label: 'Sizes', href: '/admin/category-sizes', icon: Ruler },
     ],
   },

@@ -13,10 +13,6 @@ interface OrdersTableProps {
   onOrderClick: (order: Order) => void;
 }
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-}
-
 function formatDate(dateString: string) {
   const date = new Date(dateString);
   return {
@@ -61,7 +57,18 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                     className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/70 cursor-pointer transition-all duration-150"
                   >
                     <td className="px-5 py-3.5">
-                      <span className="text-[13px] font-mono font-semibold text-slate-900">#{order.id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-mono font-semibold text-slate-900">#{order.id}</span>
+                        {order.createdBy === 'admin' ? (
+                          <span title="Created by Admin" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-violet-50 text-violet-600 border border-violet-200/60">
+                            Admin
+                          </span>
+                        ) : (
+                          <span title="Created by Customer" className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-cyan-50 text-cyan-600 border border-cyan-200/60">
+                            Customer
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
@@ -148,7 +155,10 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                       </div>
                       <div>
                         <p className="text-[13px] font-medium text-slate-900">{order.userName}</p>
-                        <p className="text-[11px] text-slate-400">#{order.id} · {formatDate(order.createdAt).date}</p>
+                        <p className="text-[11px] text-slate-400">
+                          #{order.id} · {formatDate(order.createdAt).date}
+                          {order.createdBy === 'admin' ? ' · Admin' : ''}
+                        </p>
                       </div>
                     </div>
                     <ChevronRight className="h-4 w-4 text-slate-300" />
@@ -163,7 +173,6 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                           <FileCheck className="h-3 w-3 text-emerald-600" />
                         </span>
                       )}
-                      <span className="text-[13px] font-semibold tabular-nums text-slate-900">{totalQty} qty</span>
                       <StatusBadge status={order.status} />
                     </div>
                   </div>

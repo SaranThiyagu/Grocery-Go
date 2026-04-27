@@ -22,6 +22,12 @@ import {
   Loader2,
   Eye,
   FileSpreadsheet,
+  Pencil,
+  Plus,
+  Minus,
+  X,
+  Search,
+  Save,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge } from '@/components/admin/OrderDrawer';
@@ -55,12 +61,28 @@ interface Order {
   updatedAt: string;
   items: OrderItem[];
   invoiceUrl?: string;
+  createdBy?: string;
 }
 
 interface OrderDetailsPageProps {
   params: Promise<{
     orderId: string;
   }>;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  sellingMode: string;
+  retailSizes: string[];
+  wholesaleSizes: string[];
+}
+
+interface EditItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  size: string | null;
 }
 
 export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
@@ -72,6 +94,12 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [updating, setUpdating] = useState(false);
   const [comment, setComment] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editItems, setEditItems] = useState<EditItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductPicker, setShowProductPicker] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -91,6 +119,104 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       setLoading(false);
     }
   };
+
+  // ── Edit Mode Helpers ─────────────────────────────────────
+  const startEditing = async () => {
+    if (!order) return;
+    setEditItems(order.items.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      quantity: item.quantity,
+      size: item.size || null,
+    })));
+    // Fetch products for the picker
+    try {
+      const res = await fetch('/api/products');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.filter((p: any) => p.isActive));
+      }
+    } catch {
+      console.error('Failed to load products');
+    }
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditItems([]);
+    setProductSearch('');
+    setShowProductPicker(false);
+  };
+
+  const updateItemQty = (index: number, delta: number) => {
+    setEditItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      const newQty = Math.max(1, item.quantity + delta);
+      return { ...item, quantity: newQty };
+    }));
+  };
+
+  const removeEditItem = (index: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addProduct = (product: Product, size: string | null) => {
+    // Check if same product + size already exists
+    const existing = editItems.findIndex(
+      item => item.productId === product.id && item.size === size
+    );
+    if (existing >= 0) {
+      updateItemQty(existing, 1);
+    } else {
+      setEditItems(prev => [...prev, {
+        productId: product.id,
+        productName: product.name,
+        quantity: 1,
+        size,
+      }]);
+    }
+    setProductSearch('');
+    setShowProductPicker(false);
+  };
+
+  const saveOrderItems = async () => {
+    if (editItems.length === 0) {
+      toast({ title: 'Error', description: 'Order must have at least one item', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: editItems }),
+      });
+      if (res.ok) {
+        const updatedOrder = await res.json();
+        setOrder(updatedOrder);
+        setIsEditing(false);
+        setEditItems([]);
+        toast({ title: 'Success', description: 'Order items updated successfully' });
+      } else {
+        const err = await res.json();
+        toast({ title: 'Error', description: err.error || 'Failed to update order', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update order items', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredProducts = products.filter(p => {
+    if (!p.name.toLowerCase().includes(productSearch.toLowerCase())) return false;
+    const ct = order?.customerType?.toLowerCase();
+    const mode = p.sellingMode?.toLowerCase();
+    if (ct === 'retail' && mode === 'wholesale') return false;
+    if (ct === 'wholesale' && mode === 'retail') return false;
+    return true;
+  }).slice(0, 8);
 
   const updateOrderStatus = async (newStatus: string) => {
     if (!order) return;
@@ -246,6 +372,17 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                 Order #{order.id}
               </h1>
               <StatusBadge status={order.status} />
+              {order.createdBy === 'admin' ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 text-violet-700 border border-violet-200/60">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+                  Admin
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200/60">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                  Customer
+                </span>
+              )}
             </div>
             <p className="text-[13px] text-slate-400 mt-0.5">
               {formatDate(order.createdAt)} at {formatTime(order.createdAt)}
@@ -505,38 +642,213 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
           {/* Right: Items */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl border border-slate-200/60 premium-shadow overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h3 className="text-[15px] font-semibold text-slate-900">Order Items</h3>
-                <p className="text-[12px] text-slate-400 mt-0.5">{order.items.length} item{order.items.length !== 1 ? 's' : ''} in this order</p>
-              </div>
-
-              <div className="divide-y divide-slate-50">
-                {order.items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 px-5 py-4">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center flex-shrink-0">
-                      <Package className="w-5 h-5 text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-[14px] font-medium text-slate-900">{item.productName}</h4>
-                      {item.size && (
-                        <span className="inline-block mt-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {item.size}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[14px] font-semibold tabular-nums text-slate-900 flex-shrink-0">
-                      Qty: {item.quantity}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-[14px] font-semibold text-slate-900">Total Qty</span>
-                  <span className="text-[18px] font-bold tabular-nums text-slate-900">{order.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-[15px] font-semibold text-slate-900">Order Items</h3>
+                  <p className="text-[12px] text-slate-400 mt-0.5">
+                    {isEditing ? `${editItems.length} item${editItems.length !== 1 ? 's' : ''}` : `${order.items.length} item${order.items.length !== 1 ? 's' : ''} in this order`}
+                  </p>
                 </div>
+                {order.status.toLowerCase() !== 'delivered' && !isEditing && (
+                  <button
+                    onClick={startEditing}
+                    className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+                {isEditing && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={cancelEditing}
+                      disabled={saving}
+                      className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-slate-600 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveOrderItems}
+                      disabled={saving || editItems.length === 0}
+                      className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* View Mode */}
+              {!isEditing && (
+                <>
+                  <div className="divide-y divide-slate-50">
+                    {order.items.map((item) => (
+                      <div key={item.id} className="flex items-center gap-4 px-5 py-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[14px] font-medium text-slate-900">{item.productName}</h4>
+                          {item.size && (
+                            <span className="inline-block mt-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                              {item.size}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[14px] font-semibold tabular-nums text-slate-900 flex-shrink-0">
+                          Qty: {item.quantity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[14px] font-semibold text-slate-900">Total Qty</span>
+                      <span className="text-[18px] font-bold tabular-nums text-slate-900">{order.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Edit Mode */}
+              {isEditing && (
+                <>
+                  <div className="divide-y divide-slate-50">
+                    {editItems.map((item, index) => (
+                      <div key={`${item.productId}-${item.size}-${index}`} className="flex items-center gap-4 px-5 py-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200/60 flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-[14px] font-medium text-slate-900">{item.productName}</h4>
+                          {item.size && (
+                            <span className="inline-block mt-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                              {item.size}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => updateItemQty(index, -1)}
+                            className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-10 text-center text-[14px] font-semibold tabular-nums text-slate-900">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateItemQty(index, 1)}
+                            className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-500 transition-colors cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() => removeEditItem(index)}
+                            className="w-8 h-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors cursor-pointer ml-1"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {editItems.length === 0 && (
+                      <div className="px-5 py-8 text-center">
+                        <Package className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-[13px] text-slate-400">No items. Add products below.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add Product */}
+                  <div className="px-5 py-4 border-t border-slate-100">
+                    {!showProductPicker ? (
+                      <button
+                        onClick={() => setShowProductPicker(true)}
+                        className="flex items-center gap-2 w-full h-10 px-4 text-[13px] font-medium text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Product
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <input
+                            type="text"
+                            value={productSearch}
+                            onChange={(e) => setProductSearch(e.target.value)}
+                            placeholder="Search products..."
+                            autoFocus
+                            className="w-full h-10 pl-9 pr-8 text-[13px] border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-300 placeholder:text-slate-400"
+                          />
+                          <button
+                            onClick={() => { setShowProductPicker(false); setProductSearch(''); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="max-h-[280px] overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-50">
+                          {filteredProducts.length === 0 ? (
+                            <div className="px-4 py-6 text-center">
+                              <p className="text-[13px] text-slate-400">
+                                {productSearch ? 'No products found' : 'Type to search products'}
+                              </p>
+                            </div>
+                          ) : (
+                            filteredProducts.map(product => {
+                              const customerType = order.customerType?.toLowerCase();
+                              const sizes = customerType === 'wholesale'
+                                ? product.wholesaleSizes
+                                : customerType === 'retail'
+                                  ? product.retailSizes
+                                  : [...product.retailSizes, ...product.wholesaleSizes];
+                              const uniqueSizes = [...new Set(sizes)];
+
+                              return (
+                                <div key={product.id} className="px-4 py-3">
+                                  <p className="text-[13px] font-medium text-slate-900 mb-2">{product.name}</p>
+                                  {uniqueSizes.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {uniqueSizes.map(size => (
+                                        <button
+                                          key={size}
+                                          onClick={() => addProduct(product, size)}
+                                          className="text-[11px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200/50 transition-colors cursor-pointer"
+                                        >
+                                          + {size}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => addProduct(product, null)}
+                                      className="text-[11px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-full border border-indigo-200/50 transition-colors cursor-pointer"
+                                    >
+                                      + Add
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[14px] font-semibold text-slate-900">Total Qty</span>
+                      <span className="text-[18px] font-bold tabular-nums text-slate-900">{editItems.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Loader2, Check, ChevronsUpDown } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Loader2, Check, ChevronsUpDown, Plus, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TagInput from '@/components/admin/TagInput';
 import ImageUpload from '@/components/admin/ImageUpload';
@@ -50,6 +51,17 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
     const [wholesaleSuggestions, setWholesaleSuggestions] = useState<string[]>([]);
     const [brandOpen, setBrandOpen] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
+    const [quickCreate, setQuickCreate] = useState<null | 'brand' | 'category'>(null);
+    const [quickCreateName, setQuickCreateName] = useState('');
+    const [quickCreateError, setQuickCreateError] = useState('');
+    const [quickCreateSaving, setQuickCreateSaving] = useState(false);
+    const [manageSizesType, setManageSizesType] = useState<null | 'retail' | 'wholesale'>(null);
+    const [manageSizesList, setManageSizesList] = useState<{ id: number; sizeLabel: string }[]>([]);
+    const [manageSizesLoading, setManageSizesLoading] = useState(false);
+    const [newSizeLabel, setNewSizeLabel] = useState('');
+    const [newSizeError, setNewSizeError] = useState('');
+    const [newSizeAdding, setNewSizeAdding] = useState(false);
+    const [deletingSizeId, setDeletingSizeId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loadingSizes, setLoadingSizes] = useState(false);
     const [errors, setErrors] = useState<{ retailSizes?: string; wholesaleSizes?: string }>({});
@@ -113,6 +125,146 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
             setFormData(prev => ({ ...prev, ...initialData }));
         }
     }, [initialData]);
+
+    const openQuickCreate = (type: 'brand' | 'category') => {
+        setQuickCreateName('');
+        setQuickCreateError('');
+        setQuickCreate(type);
+    };
+
+    const handleQuickCreate = async () => {
+        const name = quickCreateName.trim();
+        if (!name) {
+            setQuickCreateError('Name is required');
+            return;
+        }
+        const list = quickCreate === 'brand' ? brands : categories;
+        if (list.some(item => item.name.toLowerCase() === name.toLowerCase())) {
+            setQuickCreateError(`A ${quickCreate} with this name already exists`);
+            return;
+        }
+        setQuickCreateSaving(true);
+        setQuickCreateError('');
+        try {
+            const url = quickCreate === 'brand' ? '/api/brands' : '/api/categories';
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setQuickCreateError(data.error || `Failed to create ${quickCreate}`);
+                return;
+            }
+            if (quickCreate === 'brand') {
+                const newBrand = { id: data.id, name: data.name };
+                setBrands(prev => [...prev, newBrand].sort((a, b) => a.name.localeCompare(b.name)));
+                setFormData(prev => ({ ...prev, brandId: newBrand.id.toString() }));
+            } else {
+                const newCategory = { id: data.id, name: data.name };
+                setCategories(prev => [...prev, newCategory].sort((a, b) => a.name.localeCompare(b.name)));
+                setFormData(prev => ({ ...prev, categoryId: newCategory.id.toString() }));
+            }
+            setQuickCreate(null);
+        } catch {
+            setQuickCreateError(`Failed to create ${quickCreate}`);
+        } finally {
+            setQuickCreateSaving(false);
+        }
+    };
+
+    const openManageSizes = async (type: 'retail' | 'wholesale') => {
+        if (!formData.categoryId) return;
+        setManageSizesType(type);
+        setNewSizeLabel('');
+        setNewSizeError('');
+        setManageSizesLoading(true);
+        setManageSizesList([]);
+        try {
+            const res = await fetch(`/api/category-sizes?categoryId=${formData.categoryId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const filtered = (data || [])
+                    .filter((s: { type: string }) => s.type === type)
+                    .map((s: { id: number; sizeLabel: string }) => ({ id: s.id, sizeLabel: s.sizeLabel }));
+                setManageSizesList(filtered);
+            }
+        } catch (err) {
+            console.error('Error loading category sizes:', err);
+        } finally {
+            setManageSizesLoading(false);
+        }
+    };
+
+    const addCategorySize = async () => {
+        const label = newSizeLabel.trim();
+        if (!label) {
+            setNewSizeError('Size label is required');
+            return;
+        }
+        if (manageSizesList.some(s => s.sizeLabel.toLowerCase() === label.toLowerCase())) {
+            setNewSizeError('This size already exists');
+            return;
+        }
+        if (!manageSizesType || !formData.categoryId) return;
+        setNewSizeAdding(true);
+        setNewSizeError('');
+        try {
+            const res = await fetch('/api/category-sizes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    categoryId: parseInt(formData.categoryId),
+                    sizeLabel: label,
+                    type: manageSizesType,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setNewSizeError(data.error || 'Failed to add size');
+                return;
+            }
+            const created = { id: data.id, sizeLabel: data.size_label };
+            setManageSizesList(prev => [...prev, created]);
+            // Update suggestions for the relevant type
+            if (manageSizesType === 'retail') {
+                setRetailSuggestions(prev => prev.includes(created.sizeLabel) ? prev : [...prev, created.sizeLabel]);
+            } else {
+                setWholesaleSuggestions(prev => prev.includes(created.sizeLabel) ? prev : [...prev, created.sizeLabel]);
+            }
+            setNewSizeLabel('');
+        } catch {
+            setNewSizeError('Failed to add size');
+        } finally {
+            setNewSizeAdding(false);
+        }
+    };
+
+    const deleteCategorySize = async (id: number, label: string) => {
+        setDeletingSizeId(id);
+        try {
+            const res = await fetch(`/api/category-sizes?id=${id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setNewSizeError(data.error || 'Failed to delete size');
+                return;
+            }
+            setManageSizesList(prev => prev.filter(s => s.id !== id));
+            // Remove from suggestions and any selected sizes in form
+            if (manageSizesType === 'retail') {
+                setRetailSuggestions(prev => prev.filter(s => s !== label));
+                setFormData(prev => ({ ...prev, retailSizes: prev.retailSizes.filter(s => s !== label) }));
+            } else if (manageSizesType === 'wholesale') {
+                setWholesaleSuggestions(prev => prev.filter(s => s !== label));
+                setFormData(prev => ({ ...prev, wholesaleSizes: prev.wholesaleSizes.filter(s => s !== label) }));
+            }
+        } catch {
+            setNewSizeError('Failed to delete size');
+        } finally {
+            setDeletingSizeId(null);
+        }
+    };
 
     const showRetail = formData.sellingMode === 'retail' || formData.sellingMode === 'both';
     const showWholesale = formData.sellingMode === 'wholesale' || formData.sellingMode === 'both';
@@ -207,7 +359,17 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                         {/* Brand & Category Row */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label className="text-[13px] font-semibold text-slate-700">Brand</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-[13px] font-semibold text-slate-700">Brand</Label>
+                                    <button
+                                        type="button"
+                                        onClick={() => openQuickCreate('brand')}
+                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                        New
+                                    </button>
+                                </div>
                                 <Popover open={brandOpen} onOpenChange={setBrandOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -249,7 +411,17 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                 </Popover>
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[13px] font-semibold text-slate-700">Category</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-[13px] font-semibold text-slate-700">Category</Label>
+                                    <button
+                                        type="button"
+                                        onClick={() => openQuickCreate('category')}
+                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                        New
+                                    </button>
+                                </div>
                                 <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                                     <PopoverTrigger asChild>
                                         <Button
@@ -354,11 +526,23 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                         {/* Retail Packaging */}
                         {showRetail && (
                             <div className="space-y-2">
-                                <div>
-                                    <Label className="text-[13px] font-semibold text-slate-700">
-                                        Retail Packaging <span className="text-red-500">*</span>
-                                    </Label>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">Small quantities for individual customers</p>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label className="text-[13px] font-semibold text-slate-700">
+                                            Retail Packaging <span className="text-red-500">*</span>
+                                        </Label>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Small quantities for individual customers</p>
+                                    </div>
+                                    {formData.categoryId && (
+                                        <button
+                                            type="button"
+                                            onClick={() => openManageSizes('retail')}
+                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            Manage Sizes
+                                        </button>
+                                    )}
                                 </div>
                                 {loadingSizes ? (
                                     <div className="flex items-center gap-2 py-2">
@@ -391,11 +575,23 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                         {/* Wholesale Packaging */}
                         {showWholesale && (
                             <div className="space-y-2">
-                                <div>
-                                    <Label className="text-[13px] font-semibold text-slate-700">
-                                        Wholesale Packaging <span className="text-red-500">*</span>
-                                    </Label>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">Bulk quantities for business customers</p>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label className="text-[13px] font-semibold text-slate-700">
+                                            Wholesale Packaging <span className="text-red-500">*</span>
+                                        </Label>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Bulk quantities for business customers</p>
+                                    </div>
+                                    {formData.categoryId && (
+                                        <button
+                                            type="button"
+                                            onClick={() => openManageSizes('wholesale')}
+                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                            Manage Sizes
+                                        </button>
+                                    )}
                                 </div>
                                 {loadingSizes ? (
                                     <div className="flex items-center gap-2 py-2">
@@ -467,6 +663,212 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                     />
                 </div>
             </div>
+
+            {/* Quick Create Brand/Category Dialog */}
+            <Dialog
+                open={quickCreate !== null}
+                onOpenChange={(open) => {
+                    if (!open && !quickCreateSaving) setQuickCreate(null);
+                }}
+            >
+                <DialogContent className="sm:max-w-[420px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-[15px]">
+                            New {quickCreate === 'brand' ? 'Brand' : 'Category'}
+                        </DialogTitle>
+                        <DialogDescription className="text-[12px]">
+                            {quickCreate === 'brand'
+                                ? 'Add a new brand. It will be selected automatically.'
+                                : 'Add a new category. It will be selected automatically.'}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2 py-2">
+                        <Label htmlFor="quick-create-name" className="text-[13px] font-semibold text-slate-700">
+                            Name
+                        </Label>
+                        <Input
+                            id="quick-create-name"
+                            autoFocus
+                            value={quickCreateName}
+                            onChange={(e) => {
+                                setQuickCreateName(e.target.value);
+                                if (quickCreateError) setQuickCreateError('');
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleQuickCreate();
+                                }
+                            }}
+                            placeholder={quickCreate === 'brand' ? 'e.g. Aashirvaad' : 'e.g. Rice & Grains'}
+                            className="h-10 text-[13px]"
+                            disabled={quickCreateSaving}
+                        />
+                        {quickCreateError && (
+                            <div className="flex items-center gap-1.5 text-[12px] text-red-600">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                {quickCreateError}
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter className="gap-2 sm:gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setQuickCreate(null)}
+                            disabled={quickCreateSaving}
+                            className="h-9 text-[13px]"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleQuickCreate}
+                            disabled={quickCreateSaving || !quickCreateName.trim()}
+                            className="h-9 text-[13px] bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            {quickCreateSaving ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="h-3.5 w-3.5 mr-1" />
+                                    Create
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Manage Category Sizes Dialog */}
+            <Dialog
+                open={manageSizesType !== null}
+                onOpenChange={(open) => {
+                    if (!open && !newSizeAdding && deletingSizeId === null) {
+                        setManageSizesType(null);
+                        setNewSizeError('');
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-[480px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-[15px]">
+                            Manage {manageSizesType === 'retail' ? 'Retail' : 'Wholesale'} Sizes
+                        </DialogTitle>
+                        <DialogDescription className="text-[12px]">
+                            {selectedCategoryName ? (
+                                <>For category <span className="font-semibold text-slate-700">{selectedCategoryName}</span></>
+                            ) : 'Add or remove sizes for the selected category.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {/* Add new size */}
+                    <div className="space-y-2 pt-1">
+                        <Label htmlFor="new-size-input" className="text-[13px] font-semibold text-slate-700">
+                            Add Size
+                        </Label>
+                        <div className="flex gap-2">
+                            <Input
+                                id="new-size-input"
+                                autoFocus
+                                value={newSizeLabel}
+                                onChange={(e) => {
+                                    setNewSizeLabel(e.target.value);
+                                    if (newSizeError) setNewSizeError('');
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        addCategorySize();
+                                    }
+                                }}
+                                placeholder={manageSizesType === 'retail' ? 'e.g. 500g, 1kg' : 'e.g. 25kg, 50kg'}
+                                className="h-10 text-[13px]"
+                                disabled={newSizeAdding}
+                            />
+                            <Button
+                                type="button"
+                                onClick={addCategorySize}
+                                disabled={newSizeAdding || !newSizeLabel.trim()}
+                                className="h-10 text-[13px] bg-indigo-600 hover:bg-indigo-700 flex-shrink-0"
+                            >
+                                {newSizeAdding ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Plus className="h-3.5 w-3.5 mr-1" />
+                                        Add
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                        {newSizeError && (
+                            <div className="flex items-center gap-1.5 text-[12px] text-red-600">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                {newSizeError}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Existing sizes */}
+                    <div className="space-y-2 pt-2">
+                        <Label className="text-[13px] font-semibold text-slate-700">
+                            Existing Sizes {manageSizesList.length > 0 && (
+                                <span className="text-[11px] font-normal text-slate-400">({manageSizesList.length})</span>
+                            )}
+                        </Label>
+                        {manageSizesLoading ? (
+                            <div className="flex items-center gap-2 py-3">
+                                <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
+                                <span className="text-[12px] text-slate-400">Loading sizes...</span>
+                            </div>
+                        ) : manageSizesList.length === 0 ? (
+                            <p className="text-[12px] text-slate-400 py-2">
+                                No sizes yet. Add your first one above.
+                            </p>
+                        ) : (
+                            <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto py-1">
+                                {manageSizesList.map((size) => (
+                                    <span
+                                        key={size.id}
+                                        className="inline-flex items-center gap-1.5 pl-3 pr-1 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full text-[12px] font-medium transition-colors"
+                                    >
+                                        {size.sizeLabel}
+                                        <button
+                                            type="button"
+                                            onClick={() => deleteCategorySize(size.id, size.sizeLabel)}
+                                            disabled={deletingSizeId === size.id}
+                                            className="ml-0.5 h-5 w-5 flex items-center justify-center rounded-full hover:bg-red-100 hover:text-red-600 transition-colors disabled:opacity-50"
+                                            aria-label={`Remove ${size.sizeLabel}`}
+                                        >
+                                            {deletingSizeId === size.id ? (
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                            ) : (
+                                                <X className="h-3 w-3" />
+                                            )}
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setManageSizesType(null)}
+                            disabled={newSizeAdding || deletingSizeId !== null}
+                            className="h-9 text-[13px]"
+                        >
+                            Done
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </form>
     );
 }

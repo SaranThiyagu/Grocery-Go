@@ -89,6 +89,7 @@ export default function AdminPanel() {
       result = result.filter(o =>
         o.id.toLowerCase().includes(term) ||
         o.userName?.toLowerCase().includes(term) ||
+        o.customerName?.toLowerCase().includes(term) ||
         o.userEmail?.toLowerCase().includes(term) ||
         o.customerStoreName?.toLowerCase().includes(term) ||
         o.customerMobile?.includes(term) ||
@@ -104,8 +105,6 @@ export default function AdminPanel() {
       case 'oldest':
         result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         break;
-      case 'amount-high':
-      case 'amount-low':
       default:
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
@@ -168,10 +167,12 @@ export default function AdminPanel() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 h-9 px-4 text-[13px] font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors cursor-pointer">
+          <button
+            onClick={() => router.push('/admin/orders/create')}
+            className="flex items-center gap-2 h-9 px-4 text-[13px] font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition-colors cursor-pointer"
+          >
             <Plus className="h-3.5 w-3.5" />
             Create Order
-            <ChevronDown className="h-3 w-3 ml-0.5 opacity-70" />
           </button>
           <button className="flex items-center gap-2 h-9 px-3.5 text-[13px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
             <Calendar className="h-3.5 w-3.5 text-slate-400" />

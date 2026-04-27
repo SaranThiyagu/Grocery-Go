@@ -54,6 +54,7 @@ export interface Order {
   updatedAt: string;
   items: OrderItem[];
   invoiceUrl?: string;
+  createdBy?: string;
 }
 
 interface OrderDrawerProps {

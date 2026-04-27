@@ -79,6 +79,7 @@ export async function GET(
             status: order.status,
             createdAt: order.created_at,
             updatedAt: order.updated_at,
+            createdBy: (order as any).created_by || 'customer',
             invoiceUrl: order.invoice_url || undefined,
             items: (order.order_items || []).map((item: any) => {
                 const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
@@ -254,6 +255,155 @@ export async function PATCH(
         console.error('Error updating order:', error);
         return NextResponse.json(
             { error: 'Failed to update order' },
+            { status: 500 }
+        );
+    }
+}
+
+// PUT - Update order items (add, remove, change qty)
+export async function PUT(
+    request: Request,
+    { params }: { params: Promise<{ orderId: string }> }
+) {
+    try {
+        const user = await getAuthenticatedUser();
+        if (!user) return unauthorizedResponse();
+
+        const { orderId } = await params;
+        const body = await request.json();
+        const { items } = body;
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return NextResponse.json(
+                { error: 'At least one item is required' },
+                { status: 400 }
+            );
+        }
+
+        // Validate each item
+        for (const item of items) {
+            if (!item.productId || !item.productName || !item.quantity || item.quantity < 1) {
+                return NextResponse.json(
+                    { error: 'Each item must have productId, productName, and quantity >= 1' },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Verify order exists and is not delivered
+        const { data: currentOrder, error: fetchError } = await supabaseAdmin
+            .from('orders')
+            .select('id, status')
+            .eq('id', orderId)
+            .single();
+
+        if (fetchError || !currentOrder) {
+            return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+        }
+
+        if (currentOrder.status === 'Delivered') {
+            return NextResponse.json(
+                { error: 'Cannot edit a delivered order' },
+                { status: 400 }
+            );
+        }
+
+        // Delete existing order items
+        const { error: deleteError } = await supabaseAdmin
+            .from('order_items')
+            .delete()
+            .eq('order_id', orderId);
+
+        if (deleteError) {
+            console.error('Error deleting old order items:', deleteError);
+            return NextResponse.json({ error: 'Failed to update order items' }, { status: 500 });
+        }
+
+        // Insert new order items
+        const newItems = items.map((item: any) => ({
+            order_id: orderId,
+            product_id: item.productId,
+            name: item.size ? `${item.productName} (${item.size})` : item.productName,
+            quantity: item.quantity,
+            price: 0,
+            size: item.size || null,
+        }));
+
+        const { error: insertError } = await supabaseAdmin
+            .from('order_items')
+            .insert(newItems);
+
+        if (insertError) {
+            console.error('Error inserting order items:', insertError);
+            return NextResponse.json({ error: 'Failed to update order items' }, { status: 500 });
+        }
+
+        // Update total_amount to 0 (no pricing) and updated_at
+        await supabaseAdmin
+            .from('orders')
+            .update({ total_amount: 0, updated_at: new Date().toISOString() })
+            .eq('id', orderId);
+
+        // Re-fetch updated order
+        const { data: updatedOrder, error: reFetchError } = await supabaseAdmin
+            .from('orders')
+            .select(ORDER_SELECT)
+            .eq('id', orderId)
+            .single();
+
+        if (reFetchError || !updatedOrder) {
+            return NextResponse.json({ error: 'Failed to fetch updated order' }, { status: 500 });
+        }
+
+        // Fetch user profile
+        let profile: any = {};
+        if (updatedOrder.user_id) {
+            const { data } = await supabaseAdmin
+                .from('profiles')
+                .select('id, name, email, picture')
+                .eq('id', updatedOrder.user_id)
+                .single();
+            if (data) profile = data;
+        }
+
+        const customer = (updatedOrder as any).customers as any;
+        const transformedOrder = {
+            id: updatedOrder.id.toString(),
+            userId: updatedOrder.user_id,
+            userName: customer?.full_name || profile.name || 'Unknown',
+            userEmail: customer?.email || profile.email || 'N/A',
+            userAvatar: profile.picture,
+            customerId: updatedOrder.customer_id || null,
+            customerName: customer?.full_name || null,
+            customerStoreName: customer?.store_name || null,
+            customerMobile: customer?.mobile_no || null,
+            customerEmail: customer?.email || null,
+            customerType: customer?.customer_type || null,
+            totalAmount: updatedOrder.total_amount,
+            status: updatedOrder.status,
+            createdAt: updatedOrder.created_at,
+            updatedAt: updatedOrder.updated_at,
+            invoiceUrl: updatedOrder.invoice_url || undefined,
+            items: (updatedOrder.order_items || []).map((item: any) => {
+                const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
+                return {
+                    id: item.id.toString(),
+                    productId: item.product_id,
+                    productName: item.products?.name || item.name,
+                    productPrice: item.price,
+                    productImage: item.products?.image,
+                    quantity: item.quantity,
+                    total: item.price * item.quantity,
+                    size: item.size || sizeMatch?.[1] || null,
+                };
+            }),
+        };
+
+        return NextResponse.json(transformedOrder);
+    } catch (error) {
+        console.error('Error updating order items:', error);
+        return NextResponse.json(
+            { error: 'Failed to update order items' },
             { status: 500 }
         );
     }

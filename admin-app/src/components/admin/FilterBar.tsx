@@ -97,15 +97,8 @@ export default function FilterBar({
           <SelectContent align="end">
             <SelectItem value="newest">Newest</SelectItem>
             <SelectItem value="oldest">Oldest</SelectItem>
-            <SelectItem value="amount-high">Amount ↑</SelectItem>
-            <SelectItem value="amount-low">Amount ↓</SelectItem>
           </SelectContent>
         </Select>
-
-        <button className="hidden sm:flex items-center gap-1.5 h-9 px-3 text-[13px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
-          Filters
-        </button>
       </div>
     </div>
   );

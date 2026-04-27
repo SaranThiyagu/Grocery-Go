@@ -64,6 +64,7 @@ export async function GET() {
                 status: order.status,
                 createdAt: order.created_at,
                 updatedAt: order.updated_at,
+                createdBy: order.created_by || 'customer',
                 invoiceUrl: order.invoice_url || undefined,
                 items: (order.order_items || []).map((item: any) => {
                     const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
@@ -91,83 +92,83 @@ export async function GET() {
     }
 }
 
-// POST - Backfill missing product_id in order_items by matching product name
+// POST - Create a new order
 export async function POST(request: Request) {
     try {
         const user = await getAuthenticatedUser();
         if (!user) return unauthorizedResponse();
 
-        // Fetch all order_items where product_id is NULL
-        const { data: orphanItems, error: fetchError } = await supabaseAdmin
-            .from('order_items')
-            .select('id, name')
-            .is('product_id', null);
+        const body = await request.json();
+        const { customerId, items } = body;
 
-        if (fetchError) {
-            console.error('Error fetching orphan items:', fetchError);
-            return NextResponse.json(
-                { error: 'Failed to fetch order items' },
-                { status: 500 }
-            );
+        if (!customerId) {
+            return NextResponse.json({ error: 'Customer is required' }, { status: 400 });
         }
-
-        if (!orphanItems || orphanItems.length === 0) {
-            return NextResponse.json({ updated: 0, notFound: 0, message: 'All order items already have product_id linked' });
+        if (!Array.isArray(items) || items.length === 0) {
+            return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
         }
-
-        // Fetch all products for name matching
-        const { data: products, error: prodError } = await supabaseAdmin
-            .from('products')
-            .select('id, name');
-
-        if (prodError || !products) {
-            console.error('Error fetching products:', prodError);
-            return NextResponse.json(
-                { error: 'Failed to fetch products' },
-                { status: 500 }
-            );
-        }
-
-        // Build a map: lowercase product name → product id
-        const productMap = new Map<string, string>();
-        for (const p of products) {
-            productMap.set(p.name.toLowerCase().trim(), p.id);
-        }
-
-        let updated = 0;
-        let notFound = 0;
-        const notFoundNames: string[] = [];
-
-        for (const item of orphanItems) {
-            const productId = productMap.get(item.name.toLowerCase().trim());
-            if (productId) {
-                const { error: updateError } = await supabaseAdmin
-                    .from('order_items')
-                    .update({ product_id: productId })
-                    .eq('id', item.id);
-
-                if (!updateError) {
-                    updated++;
-                }
-            } else {
-                notFound++;
-                if (!notFoundNames.includes(item.name)) {
-                    notFoundNames.push(item.name);
-                }
+        for (const item of items) {
+            if (!item.productId || !item.productName || !item.quantity || item.quantity < 1) {
+                return NextResponse.json({ error: 'Each item must have productId, productName, and quantity >= 1' }, { status: 400 });
             }
         }
 
-        return NextResponse.json({
-            updated,
-            notFound,
-            notFoundNames,
-            message: `Backfill complete: ${updated} items linked, ${notFound} items had no matching product`,
-        });
+        // Generate order ID (timestamp-based like mobile app)
+        const orderId = Date.now().toString();
+
+        // Fetch customer to get user_id link
+        const { data: customer, error: custError } = await supabaseAdmin
+            .from('customers')
+            .select('id, created_by')
+            .eq('id', customerId)
+            .single();
+
+        if (custError || !customer) {
+            return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+        }
+
+        // Insert order
+        const { error: orderError } = await supabaseAdmin
+            .from('orders')
+            .insert({
+                id: orderId,
+                order_no: orderId,
+                status: 'Ordered',
+                total_amount: 0,
+                customer_id: customerId,
+                user_id: customer.created_by || null,
+                created_by: 'admin',
+            });
+
+        if (orderError) {
+            console.error('Error creating order:', orderError);
+            return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
+        }
+
+        // Insert order items
+        const orderItems = items.map((item: any) => ({
+            order_id: orderId,
+            product_id: item.productId,
+            name: item.size ? `${item.productName} (${item.size})` : item.productName,
+            quantity: item.quantity,
+            price: 0,
+            size: item.size || null,
+        }));
+
+        const { error: itemsError } = await supabaseAdmin
+            .from('order_items')
+            .insert(orderItems);
+
+        if (itemsError) {
+            console.error('Error creating order items:', itemsError);
+            // Rollback order
+            await supabaseAdmin.from('orders').delete().eq('id', orderId);
+            return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 });
+        }
+
+        return NextResponse.json({ id: orderId, message: 'Order created successfully' }, { status: 201 });
     } catch (error) {
-        console.error('Error backfilling product IDs:', error);
-        return NextResponse.json(
-            { error: 'Failed to backfill product IDs' },
-            { status: 500 }
-        );
+        console.error('Error creating order:', error);
+        return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
     }
 }
