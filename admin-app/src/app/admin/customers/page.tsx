@@ -18,6 +18,7 @@ import {
     Users,
     UserCheck,
     Store,
+    User as UserIcon,
     Plus,
     Inbox,
     Loader2,
@@ -27,14 +28,30 @@ import {
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
-    Filter,
     X,
     Phone,
     Mail,
     MapPin,
+    AlertTriangle,
 } from 'lucide-react';
 import StatCard from '@/components/admin/StatCard';
 import { type Customer } from '@/components/admin/CustomerDrawer';
+
+// Deterministic avatar gradient from a string (premium-SaaS visual variance).
+const AVATAR_GRADIENTS = [
+    'from-indigo-100 to-violet-100 text-indigo-600',
+    'from-emerald-100 to-teal-100 text-emerald-600',
+    'from-amber-100 to-orange-100 text-amber-700',
+    'from-rose-100 to-pink-100 text-rose-600',
+    'from-sky-100 to-blue-100 text-sky-600',
+    'from-fuchsia-100 to-purple-100 text-fuchsia-600',
+];
+function avatarGradient(seed?: string | null): string {
+    if (!seed) return AVATAR_GRADIENTS[0];
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) & 0xffffffff;
+    return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+}
 
 export default function CustomersPage() {
     const router = useRouter();
@@ -170,11 +187,10 @@ export default function CustomersPage() {
                         </p>
                     </div>
                     <Button
-                        size="sm"
-                        className="h-9 px-3.5 text-[13px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 rounded-lg"
+                        className="h-10 px-4 text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-500/25 rounded-xl"
                         onClick={() => router.push('/admin/customers/create')}
                     >
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
+                        <Plus className="h-4 w-4 mr-1.5" />
                         Add Customer
                     </Button>
                 </div>
@@ -190,7 +206,7 @@ export default function CustomersPage() {
                 {/* Customers Table */}
                 <div className="bg-white rounded-2xl border border-slate-200/60 premium-shadow overflow-hidden">
                     {/* Search & Filters */}
-                    <div className="flex flex-col gap-3 px-5 py-3 border-b border-slate-100">
+                    <div className="flex flex-col gap-3 px-5 py-4 border-b border-slate-100">
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="relative w-full sm:w-80">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-[14px] w-[14px] text-slate-400" />
@@ -198,54 +214,85 @@ export default function CustomersPage() {
                                     placeholder="Search by name, mobile, email..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-9 h-9 text-[13px] bg-slate-50/80 border-slate-200/60 shadow-none rounded-lg focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300 placeholder:text-slate-400"
+                                    className="pl-9 h-9 text-[13px] bg-slate-50/80 border-slate-200/60 shadow-none rounded-lg focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-400 placeholder:text-slate-400"
                                 />
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <Filter className="h-3.5 w-3.5 text-slate-400 hidden sm:block" />
-                                <Select value={filterType} onValueChange={setFilterType}>
-                                    <SelectTrigger className="h-9 w-[130px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
-                                        <SelectValue placeholder="Type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all" className="text-[12px]">All Types</SelectItem>
-                                        <SelectItem value="retail" className="text-[12px]">Retail</SelectItem>
-                                        <SelectItem value="wholesale" className="text-[12px]">Wholesale</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                    <SelectTrigger className="h-9 w-[130px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
-                                        <SelectValue placeholder="Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all" className="text-[12px]">All Status</SelectItem>
-                                        <SelectItem value="active" className="text-[12px]">Active</SelectItem>
-                                        <SelectItem value="inactive" className="text-[12px]">Inactive</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {uniqueCities.length > 0 && (
-                                    <Select value={filterCity} onValueChange={setFilterCity}>
-                                        <SelectTrigger className="h-9 w-[130px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
-                                            <SelectValue placeholder="City" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all" className="text-[12px]">All Cities</SelectItem>
-                                            {uniqueCities.map(city => (
-                                                <SelectItem key={city} value={city} className="text-[12px]">{city}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                {hasActiveFilters && (
-                                    <button
-                                        onClick={clearFilters}
-                                        className="flex items-center gap-1 h-9 px-2.5 text-[12px] text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                        Clear
-                                    </button>
-                                )}
+
+                            {/* Type — segmented chips */}
+                            <div className="inline-flex items-center bg-slate-100/80 rounded-lg p-0.5">
+                                {[
+                                    { value: 'all', label: 'All' },
+                                    { value: 'retail', label: 'Retail' },
+                                    { value: 'wholesale', label: 'Wholesale' },
+                                ].map((opt) => {
+                                    const active = filterType === opt.value;
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setFilterType(opt.value)}
+                                            className={`h-8 px-3 text-[12px] font-medium rounded-md transition-all ${
+                                                active
+                                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/60'
+                                                    : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
+
+                            {/* Status — segmented chips */}
+                            <div className="inline-flex items-center bg-slate-100/80 rounded-lg p-0.5">
+                                {[
+                                    { value: 'all', label: 'All' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Inactive' },
+                                ].map((opt) => {
+                                    const active = filterStatus === opt.value;
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setFilterStatus(opt.value)}
+                                            className={`h-8 px-3 text-[12px] font-medium rounded-md transition-all ${
+                                                active
+                                                    ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/60'
+                                                    : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* City — keep as Select (variable count) */}
+                            {uniqueCities.length > 0 && (
+                                <Select value={filterCity} onValueChange={setFilterCity}>
+                                    <SelectTrigger className="h-9 w-[140px] text-[12px] border-slate-200/60 shadow-none rounded-lg bg-slate-50/80">
+                                        <MapPin className="h-3 w-3 text-slate-400" />
+                                        <SelectValue placeholder="All Cities" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all" className="text-[12px]">All Cities</SelectItem>
+                                        {uniqueCities.map(city => (
+                                            <SelectItem key={city} value={city} className="text-[12px]">{city}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+
+                            {hasActiveFilters && (
+                                <button
+                                    onClick={clearFilters}
+                                    className="flex items-center gap-1 h-9 px-2.5 text-[12px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                    Reset
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -272,8 +319,8 @@ export default function CustomersPage() {
                                     >
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
-                                                    <span className="text-[12px] font-bold text-indigo-600">
+                                                <div className={`w-9 h-9 rounded-full bg-gradient-to-br flex items-center justify-center flex-shrink-0 ${avatarGradient(customer.fullName)}`}>
+                                                    <span className="text-[12px] font-bold">
                                                         {customer.fullName?.charAt(0)?.toUpperCase() || '?'}
                                                     </span>
                                                 </div>
@@ -319,21 +366,28 @@ export default function CustomersPage() {
                                             )}
                                         </td>
                                         <td className="px-5 py-3.5 text-center">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                                                 customer.customerType === 'wholesale'
-                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/50'
-                                                    : 'bg-blue-50 text-blue-700 border border-blue-200/50'
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                                                    : 'bg-blue-50 text-blue-700 border-blue-200/60'
                                             }`}>
+                                                {customer.customerType === 'wholesale' ? (
+                                                    <Store className="h-2.5 w-2.5" />
+                                                ) : (
+                                                    <UserIcon className="h-2.5 w-2.5" />
+                                                )}
                                                 {customer.customerType === 'wholesale' ? 'Wholesale' : 'Retail'}
                                             </span>
                                         </td>
                                         <td className="px-5 py-3.5 text-center">
                                             {customer.status === 'active' ? (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/50">
+                                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                                     Active
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200/50">
+                                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-200/60">
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                                                     Inactive
                                                 </span>
                                             )}
@@ -375,13 +429,20 @@ export default function CustomersPage() {
                                 onClick={() => handleCustomerClick(customer)}
                                 className="px-5 py-4 flex items-center gap-3.5 hover:bg-slate-50/70 cursor-pointer active:bg-slate-100/70 transition-colors"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-[13px] font-bold text-indigo-600">
+                                <div className={`w-10 h-10 rounded-full bg-gradient-to-br flex items-center justify-center flex-shrink-0 ${avatarGradient(customer.fullName)}`}>
+                                    <span className="text-[13px] font-bold">
                                         {customer.fullName?.charAt(0)?.toUpperCase() || '?'}
                                     </span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] font-medium text-slate-900 truncate">{customer.fullName}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-[13px] font-medium text-slate-900 truncate">{customer.fullName}</p>
+                                        {customer.status === 'active' ? (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" title="Active" />
+                                        ) : (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 flex-shrink-0" title="Inactive" />
+                                        )}
+                                    </div>
                                     <div className="flex items-center gap-2 mt-0.5">
                                         <span className="text-[11px] text-slate-500">{customer.mobileNo}</span>
                                         {customer.storeName && (
@@ -393,16 +454,14 @@ export default function CustomersPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                                         customer.customerType === 'wholesale'
-                                            ? 'bg-amber-50 text-amber-700'
-                                            : 'bg-blue-50 text-blue-700'
+                                            ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                                            : 'bg-blue-50 text-blue-700 border-blue-200/60'
                                     }`}>
+                                        {customer.customerType === 'wholesale' ? <Store className="h-2 w-2" /> : <UserIcon className="h-2 w-2" />}
                                         {customer.customerType === 'wholesale' ? 'W' : 'R'}
                                     </span>
-                                    {customer.status !== 'active' && (
-                                        <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Inactive</span>
-                                    )}
                                 </div>
                             </div>
                         ))}
@@ -485,25 +544,32 @@ export default function CustomersPage() {
 
                 {/* Delete Confirmation Dialog */}
                 <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setDeleteError(null); } }}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle className="text-slate-900">
-                                {deleteError ? 'Cannot Delete Customer' : 'Delete Customer'}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription className="text-slate-500">
-                                {deleteError ? (
-                                    <span className="text-red-600">{deleteError}</span>
-                                ) : (
-                                    <>Are you sure you want to delete <span className="font-semibold text-slate-700">&quot;{deleteTarget?.fullName}&quot;</span>? This action cannot be undone.</>
-                                )}
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
+                    <AlertDialogContent className="sm:max-w-[440px] p-0 overflow-hidden">
+                        <div className="px-6 pt-6 pb-4">
+                            <div className="flex items-start gap-3.5">
+                                <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0">
+                                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                                </div>
+                                <AlertDialogHeader className="space-y-1.5 text-left">
+                                    <AlertDialogTitle className="text-[16px] font-semibold tracking-tight text-slate-900">
+                                        {deleteError ? 'Cannot Delete Customer' : 'Delete Customer'}
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription className="text-[13px] text-slate-500">
+                                        {deleteError ? (
+                                            <span className="text-red-600">{deleteError}</span>
+                                        ) : (
+                                            <>Are you sure you want to delete <span className="font-semibold text-slate-700">&quot;{deleteTarget?.fullName}&quot;</span>? This action cannot be undone.</>
+                                        )}
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                            </div>
+                        </div>
+                        <AlertDialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex-row gap-2 sm:justify-end">
                             <Button
                                 variant="outline"
                                 onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
                                 disabled={isDeleting === deleteTarget?.id}
-                                className="border-slate-200 text-slate-700"
+                                className="h-9 px-4 text-[13px] font-medium border-slate-200 text-slate-700 hover:bg-white"
                             >
                                 {deleteError ? 'Close' : 'Cancel'}
                             </Button>
@@ -511,7 +577,7 @@ export default function CustomersPage() {
                                 <Button
                                     onClick={confirmDeleteCustomer}
                                     disabled={isDeleting === deleteTarget?.id}
-                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                    className="h-9 px-4 text-[13px] font-semibold bg-red-600 hover:bg-red-700 text-white shadow-sm shadow-red-500/25"
                                 >
                                     {isDeleting === deleteTarget?.id ? (
                                         <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Deleting...</>

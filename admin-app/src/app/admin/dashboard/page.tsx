@@ -4,11 +4,13 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ShoppingBag, Users, Package,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
-  Sparkles, ChevronRight, Star, MapPin, BarChart3,
-  ShoppingCart, Truck, AlertCircle, CalendarDays,
+  ArrowUpRight, ArrowDownRight, ChevronRight, MapPin, BarChart3,
+  ShoppingCart, AlertCircle, CalendarDays,
+  Truck, AlertTriangle, Store, User as UserIcon, RefreshCw, Plus,
 } from 'lucide-react';
 import { type Order } from '@/components/admin/OrderDrawer';
+import InsightsPanel from '@/components/admin/InsightsPanel';
+import { isDeliveryOverdue, relativeDeliveryLabel } from '@/lib/delivery';
 
 // ── Types ──────────────────────────────────────────────────
 interface Product {
@@ -53,18 +55,32 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/orders').then(r => r.json()),
-      fetch('/api/products').then(r => r.json()),
-      fetch('/api/customers').then(r => r.json()),
-    ]).then(([o, p, c]) => {
+  const loadData = async () => {
+    try {
+      const [o, p, c] = await Promise.all([
+        fetch('/api/orders').then(r => r.json()),
+        fetch('/api/products').then(r => r.json()),
+        fetch('/api/customers').then(r => r.json()),
+      ]);
       setOrders(Array.isArray(o) ? o : []);
       setProducts(Array.isArray(p) ? p : []);
       setCustomers(Array.isArray(c) ? c : []);
-    }).catch(console.error).finally(() => setLoading(false));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    loadData().finally(() => setLoading(false));
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   // ── Computed Metrics ──────────────────────────────────────
   const metrics = useMemo(() => {
@@ -148,6 +164,15 @@ export default function DashboardPage() {
     // Recent orders (latest 5)
     const recentOrders = [...orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
 
+    // Delivery metrics
+    // Use local date (not UTC) so a user in IST on Apr 28 sees Apr 28 deliveries, not Apr 27.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const dueToday = orders.filter(o => o.deliveryDate === todayStr && o.status.toLowerCase() === 'confirmed');
+    const overdueDeliveries = orders.filter(o =>
+      o.status.toLowerCase() === 'confirmed' && isDeliveryOverdue(o.deliveryDate ?? null)
+    );
+
     return {
       ordersToday: ordersToday.length,
       ordersLast7: ordersLast7.length, orderCountChange,
@@ -164,6 +189,8 @@ export default function DashboardPage() {
       totalProducts: products.length,
       activeProducts: activeProducts.length,
       categories: categories.size,
+      dueToday: dueToday.length,
+      overdueDeliveries: overdueDeliveries.length,
       topProducts, topCustomers, ordersByDay, statusBreakdown,
       topCities, recentOrders,
     };
@@ -196,32 +223,57 @@ export default function DashboardPage() {
   return (
     <main className="max-w-[1280px] mx-auto px-6 py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-[26px] font-bold text-slate-900 tracking-[-0.02em]">Dashboard</h1>
-        <p className="text-[13px] text-slate-500 mt-1">
-          Business overview &middot; {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-[26px] font-bold text-slate-900 tracking-[-0.02em]">Dashboard</h1>
+          <p className="text-[13px] text-slate-500 mt-1">
+            Business overview &middot; {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="h-9 px-3 inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            onClick={() => router.push('/admin')}
+            className="h-10 px-4 inline-flex items-center gap-1.5 rounded-xl text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-md shadow-indigo-500/25 cursor-pointer transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            New Order
+          </button>
+        </div>
       </div>
 
       {/* ── KPI Cards Row 1 ─────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         {/* Total Orders */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
+        <button
+          onClick={() => router.push('/admin')}
+          className="text-left bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm shadow-slate-100/80 hover:border-indigo-200/80 hover:shadow-md hover:shadow-slate-200/50 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
-              <ShoppingBag className="h-4.5 w-4.5 text-violet-600" />
+              <ShoppingBag className="h-[18px] w-[18px] text-violet-600" />
             </div>
             <TrendBadge value={metrics.orderCountChange} />
           </div>
           <p className="text-[13px] text-slate-500 mb-0.5">Total Orders</p>
           <p className="text-[24px] font-bold text-slate-900 tracking-tight">{metrics.totalOrders}</p>
-        </div>
+        </button>
 
         {/* Active Customers */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
+        <button
+          onClick={() => router.push('/admin/customers')}
+          className="text-left bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm shadow-slate-100/80 hover:border-indigo-200/80 hover:shadow-md hover:shadow-slate-200/50 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <Users className="h-4.5 w-4.5 text-emerald-600" />
+              <Users className="h-[18px] w-[18px] text-emerald-600" />
             </div>
             <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
               +{metrics.newCustomersLast30} new
@@ -229,35 +281,101 @@ export default function DashboardPage() {
           </div>
           <p className="text-[13px] text-slate-500 mb-0.5">Active Customers</p>
           <p className="text-[24px] font-bold text-slate-900 tracking-tight">{metrics.activeCustomers}</p>
-        </div>
+        </button>
 
         {/* Total Products */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
+        <button
+          onClick={() => router.push('/admin/products')}
+          className="text-left bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm shadow-slate-100/80 hover:border-indigo-200/80 hover:shadow-md hover:shadow-slate-200/50 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-              <Package className="h-4.5 w-4.5 text-indigo-600" />
+              <Package className="h-[18px] w-[18px] text-indigo-600" />
             </div>
           </div>
-          <p className="text-[13px] text-slate-500 mb-0.5">Total Products</p>
+          <p className="text-[13px] text-slate-500 mb-0.5">Active Products</p>
           <p className="text-[24px] font-bold text-slate-900 tracking-tight">{metrics.activeProducts}</p>
-        </div>
+        </button>
 
         {/* Orders Today */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
+        <button
+          onClick={() => router.push('/admin')}
+          className="text-left bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm shadow-slate-100/80 hover:border-indigo-200/80 hover:shadow-md hover:shadow-slate-200/50 transition-all cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-              <CalendarDays className="h-4.5 w-4.5 text-amber-600" />
+              <CalendarDays className="h-[18px] w-[18px] text-amber-600" />
             </div>
           </div>
           <p className="text-[13px] text-slate-500 mb-0.5">Orders Today</p>
           <p className="text-[24px] font-bold text-slate-900 tracking-tight">{metrics.ordersToday}</p>
-        </div>
+        </button>
+      </div>
+
+      {/* ── Delivery KPIs (operational) ─────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <button
+          onClick={() => router.push('/admin?delivery=today')}
+          className="text-left bg-white rounded-2xl border border-slate-200/60 p-4 shadow-sm shadow-slate-100/80 hover:border-blue-200/80 hover:shadow-md transition-all cursor-pointer flex items-center gap-3"
+        >
+          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <Truck className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] text-slate-500">Deliveries Due Today</p>
+            <p className="text-[18px] font-bold text-slate-900 tracking-tight">{metrics.dueToday}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-slate-300" />
+        </button>
+        <button
+          onClick={() => router.push('/admin?delivery=overdue')}
+          className={`text-left bg-white rounded-2xl border p-4 shadow-sm shadow-slate-100/80 hover:shadow-md transition-all cursor-pointer flex items-center gap-3 ${
+            metrics.overdueDeliveries > 0 ? 'border-rose-200/80 hover:border-rose-300' : 'border-slate-200/60 hover:border-slate-300'
+          }`}
+        >
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            metrics.overdueDeliveries > 0 ? 'bg-rose-50' : 'bg-slate-50'
+          }`}>
+            <AlertTriangle className={`h-4 w-4 ${metrics.overdueDeliveries > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] text-slate-500">Overdue Deliveries</p>
+            <p className={`text-[18px] font-bold tracking-tight ${
+              metrics.overdueDeliveries > 0 ? 'text-rose-700' : 'text-slate-900'
+            }`}>{metrics.overdueDeliveries}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-slate-300" />
+        </button>
+        <button
+          onClick={() => router.push('/admin?status=ordered')}
+          className={`text-left bg-white rounded-2xl border p-4 shadow-sm shadow-slate-100/80 hover:shadow-md transition-all cursor-pointer flex items-center gap-3 ${
+            metrics.pendingOrders > 0 ? 'border-amber-200/80 hover:border-amber-300' : 'border-slate-200/60 hover:border-slate-300'
+          }`}
+        >
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            metrics.pendingOrders > 0 ? 'bg-amber-50' : 'bg-slate-50'
+          }`}>
+            <AlertCircle className={`h-4 w-4 ${metrics.pendingOrders > 0 ? 'text-amber-600' : 'text-slate-400'}`} />
+          </div>
+          <div className="flex-1">
+            <p className="text-[11px] text-slate-500">Awaiting Confirmation</p>
+            <p className={`text-[18px] font-bold tracking-tight ${
+              metrics.pendingOrders > 0 ? 'text-amber-700' : 'text-slate-900'
+            }`}>{metrics.pendingOrders}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-slate-300" />
+        </button>
+      </div>
+
+      {/* ── AI Insights (Tier 1 rule-based) ───────────────────── */}
+      <div className="mb-6">
+        <InsightsPanel limit={5} />
       </div>
 
       {/* ── Main Grid ───────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Orders Chart (2 cols) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-[15px] font-semibold text-slate-900">Orders Trend</h2>
@@ -298,7 +416,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Order Status Breakdown (1 col) */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80 p-6">
           <h2 className="text-[15px] font-semibold text-slate-900 mb-1">Order Status</h2>
           <p className="text-[12px] text-slate-400 mb-5">Current pipeline</p>
 
@@ -377,7 +495,7 @@ export default function DashboardPage() {
       {/* ── Second Row ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Top Products */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80 p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-slate-900">Top Products</h2>
             <button
@@ -400,7 +518,6 @@ export default function DashboardPage() {
                     <p className="text-[13px] font-medium text-slate-900 truncate">{product.name}</p>
                     <p className="text-[11px] text-slate-400">{product.count} qty ordered</p>
                   </div>
-                  <p className="text-[13px] font-semibold text-slate-900 tabular-nums">{product.count}</p>
                 </div>
               ))}
             </div>
@@ -408,7 +525,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Top Customers */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80 p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-[15px] font-semibold text-slate-900">Top Customers</h2>
             <button
@@ -429,12 +546,17 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-slate-900 truncate">{cust.name}</p>
-                    <p className="text-[11px] text-slate-400">
-                      {cust.orders} order{cust.orders !== 1 ? 's' : ''} &middot;{' '}
-                      <span className={cust.type === 'wholesale' ? 'text-violet-500' : 'text-emerald-500'}>
-                        {cust.type}
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-[11px] text-slate-400">{cust.orders} order{cust.orders !== 1 ? 's' : ''}</span>
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0 rounded-full text-[10px] font-semibold border ${
+                        cust.type === 'wholesale'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                          : 'bg-blue-50 text-blue-700 border-blue-200/60'
+                      }`}>
+                        {cust.type === 'wholesale' ? <Store className="h-2 w-2" /> : <UserIcon className="h-2 w-2" />}
+                        {cust.type === 'wholesale' ? 'Wholesale' : 'Retail'}
                       </span>
-                    </p>
+                    </div>
                   </div>
                   <p className="text-[13px] font-semibold text-slate-900 tabular-nums">{cust.orders}</p>
                 </div>
@@ -444,7 +566,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Business Segments */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80 p-6">
           <h2 className="text-[15px] font-semibold text-slate-900 mb-5">Business Mix</h2>
           <div className="space-y-5">
             {/* Retail vs Wholesale */}
@@ -523,7 +645,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Recent Orders ───────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm shadow-slate-100/80">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-[15px] font-semibold text-slate-900">Recent Orders</h2>
           <button
@@ -543,6 +665,7 @@ export default function DashboardPage() {
           <div className="divide-y divide-slate-50">
             {metrics.recentOrders.map(order => {
               const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
+              const overdue = isDeliveryOverdue(order.deliveryDate ?? null) && order.status.toLowerCase() === 'confirmed';
               return (
                 <div
                   key={order.id}
@@ -557,14 +680,23 @@ export default function DashboardPage() {
                       <span className="text-[13px] font-medium text-slate-900 truncate">{order.customerName || order.userName}</span>
                       <span className="text-[11px] font-mono text-slate-400">#{order.id}</span>
                     </div>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-slate-400 truncate">
                       {order.items[0]?.productName}{order.items.length > 1 ? ` +${order.items.length - 1} more` : ''} &middot; {totalQty} qty
+                      {order.deliveryDate && (
+                        <>
+                          {' '}&middot;{' '}
+                          <span className={overdue ? 'text-rose-600 font-medium' : 'text-slate-500'}>
+                            <Truck className="inline h-3 w-3 mr-0.5 -mt-0.5" />
+                            {relativeDeliveryLabel(order.deliveryDate)}
+                          </span>
+                        </>
+                      )}
                     </p>
                   </div>
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-right flex-shrink-0 hidden sm:block">
                     <p className="text-[11px] text-slate-400">{timeAgo(order.createdAt)}</p>
                   </div>
-                  <StatusDot status={order.status} />
+                  <StatusPill status={order.status} />
                 </div>
               );
             })}
@@ -575,13 +707,13 @@ export default function DashboardPage() {
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────
+// ── Sub-components ───────────────────────────────────
 function TrendBadge({ value }: { value: number }) {
   if (value === 0) return null;
   const positive = value > 0;
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-      positive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+      positive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
     }`}>
       {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
       {Math.abs(value).toFixed(1)}%
@@ -589,8 +721,17 @@ function TrendBadge({ value }: { value: number }) {
   );
 }
 
-function StatusDot({ status }: { status: string }) {
+function StatusPill({ status }: { status: string }) {
   const s = status.toLowerCase();
-  const color = s === 'delivered' ? 'bg-emerald-500' : s === 'confirmed' ? 'bg-blue-500' : 'bg-amber-500';
-  return <div className={`w-2.5 h-2.5 rounded-full ${color} flex-shrink-0`} />;
+  const config = s === 'delivered'
+    ? { dot: 'bg-emerald-500', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/60', label: 'Delivered' }
+    : s === 'confirmed'
+      ? { dot: 'bg-blue-500', cls: 'bg-blue-50 text-blue-700 border-blue-200/60', label: 'Confirmed' }
+      : { dot: 'bg-amber-500', cls: 'bg-amber-50 text-amber-700 border-amber-200/60', label: 'Ordered' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${config.cls}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${config.dot}`} />
+      {config.label}
+    </span>
+  );
 }

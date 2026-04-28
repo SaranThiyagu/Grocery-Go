@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/s
 import {
   LayoutDashboard, ShoppingBag, Users, Package, Ruler, Tag, Layers,
   Settings, LogOut, Bell, Menu, Search,
-  PanelLeftClose, ChevronRight, Moon,
+  PanelLeftClose, ChevronRight, Moon, Sparkles,
 } from 'lucide-react';
 
 // ── Navigation Config ──────────────────────────────────────
@@ -36,6 +36,7 @@ const navigation: NavSection[] = [
       { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
       { label: 'Orders', href: '/admin', icon: ShoppingBag, countKey: 'orders' },
       { label: 'Customers', href: '/admin/customers', icon: Users },
+      // { label: 'Reports', href: '/admin/reports', icon: Sparkles }, // hidden — re-enable later
       { label: 'Products', href: '/admin/products', icon: Package },
       { label: 'Brands', href: '/admin/brands', icon: Tag },
       { label: 'Categories', href: '/admin/categories', icon: Layers },

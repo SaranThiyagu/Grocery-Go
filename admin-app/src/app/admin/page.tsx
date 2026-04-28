@@ -15,6 +15,8 @@ import {
   Zap,
   Users,
   Timer,
+  Truck,
+  AlertTriangle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import StatCard from '@/components/admin/StatCard';
@@ -22,12 +24,14 @@ import FilterBar from '@/components/admin/FilterBar';
 import OrdersTable from '@/components/admin/OrdersTable';
 import { type Order } from '@/components/admin/OrderDrawer';
 import { useToast } from '@/hooks/use-toast';
+import { isDeliveryOverdue } from '@/lib/delivery';
 
 export default function AdminPanel() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deliveryFilter, setDeliveryFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -41,6 +45,20 @@ export default function AdminPanel() {
     } catch (err) {
       console.error('Error fetching orders:', err);
     }
+  }, []);
+
+  // ── Read filters from URL query params on mount ───────────────────────
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const delivery = params.get('delivery');
+    const status = params.get('status');
+    const search = params.get('search');
+    const validDelivery = ['today', 'tomorrow', 'this_week', 'overdue', 'unassigned'];
+    const validStatus = ['ordered', 'confirmed', 'delivered'];
+    if (delivery && validDelivery.includes(delivery)) setDeliveryFilter(delivery);
+    if (status && validStatus.includes(status.toLowerCase())) setStatusFilter(status.toLowerCase());
+    if (search) setSearchTerm(search);
   }, []);
 
   // ── Data Fetch + Realtime ─────────────────────────────────
@@ -101,18 +119,49 @@ export default function AdminPanel() {
       result = result.filter(o => o.status.toLowerCase() === statusFilter.toLowerCase());
     }
 
+    if (deliveryFilter !== 'all') {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+      const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
+      result = result.filter((o) => {
+        const dateStr = o.deliveryDate;
+        if (deliveryFilter === 'unassigned') return !dateStr;
+        if (!dateStr) return false;
+        const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+        if (deliveryFilter === 'today') return d.getTime() === today.getTime();
+        if (deliveryFilter === 'tomorrow') return d.getTime() === tomorrow.getTime();
+        if (deliveryFilter === 'this_week') return d.getTime() >= today.getTime() && d.getTime() < weekEnd.getTime();
+        if (deliveryFilter === 'overdue') return isDeliveryOverdue(dateStr, o.status);
+        return true;
+      });
+    }
+
     switch (sortBy) {
       case 'oldest':
         result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        break;
+      case 'delivery_soonest':
+        result.sort((a, b) => {
+          const ad = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.POSITIVE_INFINITY;
+          const bd = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Number.POSITIVE_INFINITY;
+          return ad - bd;
+        });
+        break;
+      case 'delivery_latest':
+        result.sort((a, b) => {
+          const ad = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.NEGATIVE_INFINITY;
+          const bd = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Number.NEGATIVE_INFINITY;
+          return bd - ad;
+        });
         break;
       default:
         result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
 
     return result;
-  }, [orders, searchTerm, statusFilter, sortBy]);
+  }, [orders, searchTerm, statusFilter, deliveryFilter, sortBy]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, sortBy]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, deliveryFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
   const paginatedOrders = useMemo(() => {
@@ -125,7 +174,14 @@ export default function AdminPanel() {
     const pending = orders.filter(o => o.status.toLowerCase() === 'ordered').length;
     const confirmed = orders.filter(o => o.status.toLowerCase() === 'confirmed').length;
     const delivered = orders.filter(o => o.status.toLowerCase() === 'delivered').length;
-    return { total, pending, confirmed, delivered };
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dueToday = orders.filter((o) => {
+      if (!o.deliveryDate || o.status.toLowerCase() === 'delivered') return false;
+      const d = new Date(o.deliveryDate); d.setHours(0, 0, 0, 0);
+      return d.getTime() === today.getTime();
+    }).length;
+    const overdue = orders.filter((o) => isDeliveryOverdue(o.deliveryDate, o.status)).length;
+    return { total, pending, confirmed, delivered, dueToday, overdue };
   }, [orders]);
 
   const [showInsights, setShowInsights] = useState(true);
@@ -183,11 +239,13 @@ export default function AdminPanel() {
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <StatCard label="Total Orders" value={stats.total} icon={<ShoppingBag className="h-4 w-4" />} color="neutral" trend={{ value: '20% from last 7 days', positive: true }} />
         <StatCard label="Ordered" value={stats.pending} icon={<Clock className="h-4 w-4" />} color="amber" trend={{ value: '10% from last 7 days', positive: true }} />
         <StatCard label="Confirmed" value={stats.confirmed} icon={<CheckCircle2 className="h-4 w-4" />} color="emerald" trend={{ value: '15% from last 7 days', positive: true }} />
         <StatCard label="Delivered" value={stats.delivered} icon={<CircleDot className="h-4 w-4" />} color="emerald" trend={{ value: '25% from last 7 days', positive: true }} />
+        <StatCard label="Due Today" value={stats.dueToday} icon={<Truck className="h-4 w-4" />} color="amber" />
+        <StatCard label="Overdue" value={stats.overdue} icon={<AlertTriangle className="h-4 w-4" />} color={stats.overdue > 0 ? 'amber' : 'neutral'} />
       </div>
 
       {/* ── AI Insights Banner ───────────────────────────── */}
@@ -247,6 +305,8 @@ export default function AdminPanel() {
           onStatusFilterChange={setStatusFilter}
           sortBy={sortBy}
           onSortChange={setSortBy}
+          deliveryFilter={deliveryFilter}
+          onDeliveryFilterChange={setDeliveryFilter}
         />
         <OrdersTable
           orders={paginatedOrders}

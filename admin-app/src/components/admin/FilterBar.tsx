@@ -9,6 +9,8 @@ interface FilterBarProps {
   onStatusFilterChange: (value: string) => void;
   sortBy: string;
   onSortChange: (value: string) => void;
+  deliveryFilter?: string;
+  onDeliveryFilterChange?: (value: string) => void;
 }
 
 const statusPills = [
@@ -24,6 +26,8 @@ export default function FilterBar({
   onStatusFilterChange,
   sortBy,
   onSortChange,
+  deliveryFilter = 'all',
+  onDeliveryFilterChange,
 }: FilterBarProps) {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-3 border-b border-slate-100">
@@ -89,6 +93,22 @@ export default function FilterBar({
 
       {/* Right: Sort + Filters */}
       <div className="flex items-center gap-2 w-full sm:w-auto">
+        {onDeliveryFilterChange && (
+          <Select value={deliveryFilter} onValueChange={onDeliveryFilterChange}>
+            <SelectTrigger className="w-full sm:w-auto h-9 text-[13px] border-slate-200/60 shadow-none bg-white rounded-lg text-slate-600 gap-1.5 px-3">
+              <span className="text-slate-400 text-[12px]">Delivery:</span>
+              <SelectValue placeholder="All" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="tomorrow">Tomorrow</SelectItem>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Select value={sortBy} onValueChange={onSortChange}>
           <SelectTrigger className="w-full sm:w-auto h-9 text-[13px] border-slate-200/60 shadow-none bg-white rounded-lg text-slate-600 gap-1.5 px-3">
             <span className="text-slate-400 text-[12px]">Sort:</span>
@@ -97,6 +117,8 @@ export default function FilterBar({
           <SelectContent align="end">
             <SelectItem value="newest">Newest</SelectItem>
             <SelectItem value="oldest">Oldest</SelectItem>
+            <SelectItem value="delivery_soonest">Delivery: Soonest</SelectItem>
+            <SelectItem value="delivery_latest">Delivery: Latest</SelectItem>
           </SelectContent>
         </Select>
       </div>

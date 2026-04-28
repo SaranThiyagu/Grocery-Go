@@ -1,5 +1,6 @@
-import { ChevronRight, ChevronLeft, Inbox, FileCheck, ChevronsLeft, ChevronsRight, MoreHorizontal } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Inbox, FileCheck, ChevronsLeft, ChevronsRight, MoreHorizontal, Truck, AlertTriangle } from 'lucide-react';
 import { type Order, StatusBadge } from './OrderDrawer';
+import { isDeliveryOverdue, relativeDeliveryLabel } from '@/lib/delivery';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -34,6 +35,7 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Items</th>
               <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-3 py-3">Qty</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Status</th>
+              <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Delivery</th>
               <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-5 py-3">Date</th>
               <th className="text-center text-[11px] font-semibold text-slate-400 uppercase tracking-[0.06em] px-3 py-3">Bill</th>
               <th className="px-3 py-3 w-10"></th>
@@ -42,7 +44,7 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={9}>
                   <EmptyState />
                 </td>
               </tr>
@@ -100,6 +102,20 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge status={order.status} />
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {order.deliveryDate ? (
+                        <div className="flex flex-col">
+                          <span className={`text-[12px] font-medium ${isDeliveryOverdue(order.deliveryDate, order.status) ? 'text-red-600' : 'text-slate-700'}`}>
+                            {relativeDeliveryLabel(order.deliveryDate, order.status)}
+                          </span>
+                          {order.deliverySlot && (
+                            <span className="text-[11px] text-slate-400">{order.deliverySlot}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <div>
@@ -176,6 +192,18 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
                       <StatusBadge status={order.status} />
                     </div>
                   </div>
+                  {order.deliveryDate && (
+                    <div className="flex items-center gap-1.5 ml-[42px] mt-1.5">
+                      <Truck className="h-3 w-3 text-slate-400" />
+                      <span className={`text-[11px] ${isDeliveryOverdue(order.deliveryDate, order.status) ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
+                        {relativeDeliveryLabel(order.deliveryDate, order.status)}
+                        {order.deliverySlot && <span className="text-slate-400"> • {order.deliverySlot}</span>}
+                      </span>
+                      {isDeliveryOverdue(order.deliveryDate, order.status) && (
+                        <AlertTriangle className="h-3 w-3 text-red-500" />
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

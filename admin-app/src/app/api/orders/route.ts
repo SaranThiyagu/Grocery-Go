@@ -66,6 +66,8 @@ export async function GET() {
                 updatedAt: order.updated_at,
                 createdBy: order.created_by || 'customer',
                 invoiceUrl: order.invoice_url || undefined,
+                deliveryDate: (order as any).delivery_date || null,
+                deliverySlot: (order as any).delivery_slot || null,
                 items: (order.order_items || []).map((item: any) => {
                     const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
                     return {

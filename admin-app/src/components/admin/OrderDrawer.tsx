@@ -22,8 +22,15 @@ import {
   ExternalLink,
   Mail,
   Hash,
+  AlertTriangle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import {
+  DELIVERY_SLOTS,
+  formatDeliveryDate,
+  isDeliveryOverdue,
+  todayDateInputValue,
+} from '@/lib/delivery';
 
 export interface OrderItem {
   id: string;
@@ -55,13 +62,24 @@ export interface Order {
   items: OrderItem[];
   invoiceUrl?: string;
   createdBy?: string;
+  deliveryDate?: string | null;
+  deliverySlot?: string | null;
+}
+
+export interface ConfirmOrderPayload {
+  deliveryDate: string;
+  deliverySlot: string;
 }
 
 interface OrderDrawerProps {
   order: Order | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStatusUpdate?: (orderId: string, newStatus: string) => Promise<void>;
+  onStatusUpdate?: (
+    orderId: string,
+    newStatus: string,
+    extra?: ConfirmOrderPayload,
+  ) => Promise<void>;
 }
 
 export function getStatusConfig(status: string) {
@@ -126,17 +144,20 @@ function getTimeline(status: string, createdAt: string, updatedAt: string) {
 export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate }: OrderDrawerProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliverySlot, setDeliverySlot] = useState('');
 
   if (!order) return null;
 
   const timeline = getTimeline(order.status, order.createdAt, order.updatedAt);
   const statusLower = order.status.toLowerCase();
+  const overdue = isDeliveryOverdue(order.deliveryDate, order.status);
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = async (newStatus: string, extra?: ConfirmOrderPayload) => {
     if (!onStatusUpdate) return;
     setUpdating(true);
     try {
-      await onStatusUpdate(order.id, newStatus);
+      await onStatusUpdate(order.id, newStatus, extra);
     } finally {
       setUpdating(false);
     }
@@ -256,6 +277,19 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
                     <div className="pb-4">
                       <p className={`text-[13px] font-medium ${step.done ? 'text-slate-900' : 'text-slate-400'}`}>{step.label}</p>
                       {step.time && <p className="text-[11px] text-slate-400 mt-0.5">{step.time}</p>}
+                      {step.label === 'Confirmed' && step.done && order.deliveryDate && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] text-slate-600">
+                            Delivery: {formatDeliveryDate(order.deliveryDate)}
+                            {order.deliverySlot && <span className="text-slate-400"> • {order.deliverySlot}</span>}
+                          </span>
+                          {overdue && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">
+                              <AlertTriangle className="h-2.5 w-2.5" /> Overdue
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -268,15 +302,49 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
         <div className="px-6 py-4 border-t border-slate-100 bg-white space-y-2">
           {/* Status action button */}
           {statusLower === 'ordered' && onStatusUpdate && (
-            <Button
-              size="sm"
-              disabled={updating}
-              className="w-full h-9 text-[13px] font-medium bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25"
-              onClick={() => handleStatusUpdate('Confirmed')}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-              {updating ? 'Updating...' : 'Confirm Order'}
-            </Button>
+            <div className="space-y-2.5">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500 mb-1.5 block">Delivery Date</label>
+                <input
+                  type="date"
+                  min={todayDateInputValue()}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="w-full h-9 text-[12px] px-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-400"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500 mb-1.5 block">Time Slot</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {DELIVERY_SLOTS.map((s) => {
+                    const active = deliverySlot === s.value;
+                    return (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setDeliverySlot(s.value)}
+                        className={`flex flex-col items-start gap-0.5 px-2 py-1.5 rounded-lg border text-left transition-all ${
+                          active
+                            ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-violet-50 ring-2 ring-indigo-500/15'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <span className={`text-[11px] font-semibold ${active ? 'text-indigo-700' : 'text-slate-700'}`}>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                disabled={updating || !deliveryDate || !deliverySlot}
+                className="w-full h-9 text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 disabled:opacity-50 disabled:shadow-none"
+                onClick={() => handleStatusUpdate('Confirmed', { deliveryDate, deliverySlot })}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                {updating ? 'Updating...' : 'Confirm Order'}
+              </Button>
+            </div>
           )}
           {statusLower === 'confirmed' && onStatusUpdate && (
             <Button

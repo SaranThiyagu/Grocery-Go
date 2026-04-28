@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/auth';
+import { isDeliverySlot } from '@/lib/delivery';
 
 export const dynamic = 'force-dynamic';
+
+/** Returns YYYY-MM-DD for today in server-local time. */
+function todayIsoDate(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
 
 const ORDER_SELECT = `
     *,
@@ -81,6 +91,9 @@ export async function GET(
             updatedAt: order.updated_at,
             createdBy: (order as any).created_by || 'customer',
             invoiceUrl: order.invoice_url || undefined,
+            deliveryDate: (order as any).delivery_date || null,
+            deliverySlot: (order as any).delivery_slot || null,
+            deliveryDateHistory: (order as any).delivery_date_history || [],
             items: (order.order_items || []).map((item: any) => {
                 const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
                 return {
@@ -118,19 +131,24 @@ export async function PATCH(
         const { orderId } = await params;
 
         const body = await request.json();
-        const { status, comment } = body;
+        const {
+            status,
+            comment,
+            deliveryDate,
+            deliverySlot,
+            rescheduleReason,
+        }: {
+            status?: string;
+            comment?: string | null;
+            deliveryDate?: string | null;
+            deliverySlot?: string | null;
+            rescheduleReason?: string | null;
+        } = body;
 
-        if (!status) {
-            return NextResponse.json(
-                { error: 'Status is required' },
-                { status: 400 }
-            );
-        }
-
-        // Fetch current order to validate transition
+        // Fetch current order (needed for both status updates and reschedule).
         const { data: currentOrder, error: fetchCurrentError } = await supabaseAdmin
             .from('orders')
-            .select('status')
+            .select('status, delivery_date, delivery_slot, delivery_date_history')
             .eq('id', orderId)
             .single();
 
@@ -141,24 +159,129 @@ export async function PATCH(
             );
         }
 
-        // Validate status transition
-        const allowedNext = VALID_TRANSITIONS[currentOrder.status];
-        if (allowedNext !== status) {
+        const updateData: Record<string, unknown> = {};
+        const isStatusChange = !!status && status !== currentOrder.status;
+        const isReschedule = !isStatusChange && (deliveryDate !== undefined || deliverySlot !== undefined);
+
+        if (!isStatusChange && !isReschedule && comment === undefined) {
             return NextResponse.json(
-                { error: `Invalid transition: ${currentOrder.status} → ${status}. Allowed: ${currentOrder.status} → ${allowedNext || 'none (terminal state)'}` },
+                { error: 'Status or delivery update is required' },
                 { status: 400 }
             );
         }
 
-        // Update order status (and comment if provided)
-        const updateData: Record<string, string> = { status };
+        // ----- Status transition -----
+        if (isStatusChange) {
+            const allowedNext = VALID_TRANSITIONS[currentOrder.status];
+            if (allowedNext !== status) {
+                return NextResponse.json(
+                    { error: `Invalid transition: ${currentOrder.status} → ${status}. Allowed: ${currentOrder.status} → ${allowedNext || 'none (terminal state)'}` },
+                    { status: 400 }
+                );
+            }
+            updateData.status = status;
+
+            // Ordered → Confirmed requires delivery_date + delivery_slot.
+            if (currentOrder.status === 'Ordered' && status === 'Confirmed') {
+                if (!deliveryDate || !deliverySlot) {
+                    return NextResponse.json(
+                        { error: 'Delivery date and slot are required to confirm an order.' },
+                        { status: 400 }
+                    );
+                }
+                if (!isDeliverySlot(deliverySlot)) {
+                    return NextResponse.json(
+                        { error: 'Invalid delivery slot. Use Morning, Afternoon or Evening.' },
+                        { status: 400 }
+                    );
+                }
+                if (deliveryDate < todayIsoDate()) {
+                    return NextResponse.json(
+                        { error: 'Delivery date cannot be in the past.' },
+                        { status: 400 }
+                    );
+                }
+                updateData.delivery_date = deliveryDate;
+                updateData.delivery_slot = deliverySlot;
+                const history = Array.isArray(currentOrder.delivery_date_history)
+                    ? currentOrder.delivery_date_history
+                    : [];
+                updateData.delivery_date_history = [
+                    ...history,
+                    {
+                        from: null,
+                        to: deliveryDate,
+                        slot_from: null,
+                        slot_to: deliverySlot,
+                        reason: 'Initial schedule on confirmation',
+                        by: user.id || user.email || 'admin',
+                        at: new Date().toISOString(),
+                    },
+                ];
+            }
+        }
+
+        // ----- Reschedule (no status change) -----
+        if (isReschedule) {
+            if (currentOrder.status !== 'Confirmed') {
+                return NextResponse.json(
+                    { error: 'Delivery date can only be rescheduled while the order is Confirmed.' },
+                    { status: 400 }
+                );
+            }
+            const newDate = deliveryDate ?? currentOrder.delivery_date;
+            const newSlot = deliverySlot ?? currentOrder.delivery_slot;
+            if (!newDate || !newSlot) {
+                return NextResponse.json(
+                    { error: 'Delivery date and slot are required.' },
+                    { status: 400 }
+                );
+            }
+            if (!isDeliverySlot(newSlot)) {
+                return NextResponse.json(
+                    { error: 'Invalid delivery slot.' },
+                    { status: 400 }
+                );
+            }
+            if (newDate < todayIsoDate()) {
+                return NextResponse.json(
+                    { error: 'Delivery date cannot be in the past.' },
+                    { status: 400 }
+                );
+            }
+            const reason = (rescheduleReason || '').trim();
+            if (!reason) {
+                return NextResponse.json(
+                    { error: 'A reason is required when rescheduling delivery.' },
+                    { status: 400 }
+                );
+            }
+            updateData.delivery_date = newDate;
+            updateData.delivery_slot = newSlot;
+            const history = Array.isArray(currentOrder.delivery_date_history)
+                ? currentOrder.delivery_date_history
+                : [];
+            updateData.delivery_date_history = [
+                ...history,
+                {
+                    from: currentOrder.delivery_date,
+                    to: newDate,
+                    slot_from: currentOrder.delivery_slot,
+                    slot_to: newSlot,
+                    reason,
+                    by: user.id || user.email || 'admin',
+                    at: new Date().toISOString(),
+                },
+            ];
+        }
+
         if (comment !== undefined && comment !== null) {
             updateData.admin_comment = comment;
         }
 
         const { error: updateError } = await supabaseAdmin
             .from('orders')
-            .update(updateData)
+            .update(updateData as never)
             .eq('id', orderId);
 
         if (updateError) {
@@ -201,46 +324,78 @@ export async function PATCH(
             if (data) profile = data;
         }
 
-        // Send email if order is delivered
-        if (status === 'Delivered' && profile.email) {
+        const finalDeliveryDate: string | null = (updatedOrder as any).delivery_date || null;
+        const finalDeliverySlot: string | null = (updatedOrder as any).delivery_slot || null;
+
+        // Email (status change → Confirmed/Delivered, or reschedule)
+        if (profile.email) {
             try {
-                const { sendOrderCompletionEmail } = await import('@/lib/email');
-
-                await sendOrderCompletionEmail({
-                    orderId: updatedOrder.id.toString(),
-                    customerName: profile.name || 'Customer',
-                    customerEmail: profile.email,
-                    totalAmount: updatedOrder.total_amount,
-                    items: (updatedOrder.order_items || []).map((item: any) => ({
-                        productName: item.products?.name || item.name,
-                        quantity: item.quantity,
-                        price: item.price,
-                    })),
-                });
-
-                console.log(`Order completion email sent to ${profile.email}`);
+                const emailLib = await import('@/lib/email');
+                if (isStatusChange && status === 'Confirmed') {
+                    await emailLib.sendOrderConfirmedEmail({
+                        orderId: updatedOrder.id.toString(),
+                        customerName: profile.name || 'Customer',
+                        customerEmail: profile.email,
+                        deliveryDate: finalDeliveryDate,
+                        deliverySlot: finalDeliverySlot,
+                    });
+                } else if (isStatusChange && status === 'Delivered') {
+                    await emailLib.sendOrderCompletionEmail({
+                        orderId: updatedOrder.id.toString(),
+                        customerName: profile.name || 'Customer',
+                        customerEmail: profile.email,
+                        totalAmount: updatedOrder.total_amount,
+                        items: (updatedOrder.order_items || []).map((item: any) => ({
+                            productName: item.products?.name || item.name,
+                            quantity: item.quantity,
+                            price: item.price,
+                        })),
+                    });
+                } else if (isReschedule) {
+                    await emailLib.sendDeliveryRescheduledEmail({
+                        orderId: updatedOrder.id.toString(),
+                        customerName: profile.name || 'Customer',
+                        customerEmail: profile.email,
+                        deliveryDate: finalDeliveryDate,
+                        deliverySlot: finalDeliverySlot,
+                        reason: (rescheduleReason || '').trim(),
+                    });
+                }
             } catch (emailError) {
                 console.error('Failed to send email:', emailError);
             }
         }
 
-        // Send FCM push notification to user's mobile app
-        if (updatedOrder.user_id) {
+        // FCM push (status change or reschedule)
+        if (updatedOrder.user_id && (isStatusChange || isReschedule)) {
             try {
                 const { sendPushNotification } = await import('@/lib/fcm');
-                await sendPushNotification(updatedOrder.user_id, {
-                    title: status === 'Confirmed'
-                        ? 'Order Confirmed! ✅'
-                        : 'Order Delivered! 📦',
-                    body: status === 'Confirmed'
-                        ? `Your order #${updatedOrder.order_no || updatedOrder.id} has been confirmed by the admin.`
-                        : `Your order #${updatedOrder.order_no || updatedOrder.id} has been delivered.`,
-                    data: {
-                        type: 'order_status_update',
-                        orderId: updatedOrder.id.toString(),
-                        status,
-                    },
-                });
+                const orderRef = `#${updatedOrder.order_no || updatedOrder.id}`;
+                let title = '';
+                let bodyText = '';
+                if (isReschedule) {
+                    title = 'Delivery rescheduled 🔄';
+                    bodyText = `Order ${orderRef} delivery moved to ${finalDeliveryDate || ''}, ${finalDeliverySlot || ''}.`;
+                } else if (status === 'Confirmed') {
+                    title = 'Order Confirmed! ✅';
+                    bodyText = `Your order ${orderRef} is confirmed. Delivery: ${finalDeliveryDate || ''}, ${finalDeliverySlot || ''}.`;
+                } else if (status === 'Delivered') {
+                    title = 'Order Delivered! 📦';
+                    bodyText = `Your order ${orderRef} has been delivered.`;
+                }
+                if (title) {
+                    await sendPushNotification(updatedOrder.user_id, {
+                        title,
+                        body: bodyText,
+                        data: {
+                            type: isReschedule ? 'order_delivery_reschedule' : 'order_status_update',
+                            orderId: updatedOrder.id.toString(),
+                            status: updatedOrder.status,
+                            deliveryDate: finalDeliveryDate || '',
+                            deliverySlot: finalDeliverySlot || '',
+                        },
+                    });
+                }
             } catch (pushError) {
                 console.error('Failed to send push notification:', pushError);
             }
@@ -249,7 +404,11 @@ export async function PATCH(
         return NextResponse.json({
             id: updatedOrder.id.toString(),
             status: updatedOrder.status,
-            message: 'Order status updated successfully',
+            deliveryDate: finalDeliveryDate,
+            deliverySlot: finalDeliverySlot,
+            message: isReschedule
+                ? 'Delivery rescheduled successfully'
+                : 'Order status updated successfully',
         });
     } catch (error) {
         console.error('Error updating order:', error);
@@ -384,6 +543,8 @@ export async function PUT(
             createdAt: updatedOrder.created_at,
             updatedAt: updatedOrder.updated_at,
             invoiceUrl: updatedOrder.invoice_url || undefined,
+            deliveryDate: (updatedOrder as any).delivery_date || null,
+            deliverySlot: (updatedOrder as any).delivery_slot || null,
             items: (updatedOrder.order_items || []).map((item: any) => {
                 const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
                 return {

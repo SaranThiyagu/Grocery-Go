@@ -184,6 +184,9 @@ export type Database = {
           created_at: string
           created_by: string
           customer_id: string | null
+          delivery_date: string | null
+          delivery_slot: string | null
+          delivery_date_history: Json
           id: string
           order_no: string
           status: string
@@ -195,6 +198,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           customer_id?: string | null
+          delivery_date?: string | null
+          delivery_slot?: string | null
+          delivery_date_history?: Json
           id: string
           order_no: string
           status: string
@@ -206,6 +212,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           customer_id?: string | null
+          delivery_date?: string | null
+          delivery_slot?: string | null
+          delivery_date_history?: Json
           id?: string
           order_no?: string
           status?: string

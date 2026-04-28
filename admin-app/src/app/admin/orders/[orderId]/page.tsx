@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   ArrowLeft,
   Package,
   CheckCircle,
@@ -28,9 +36,18 @@ import {
   X,
   Search,
   Save,
+  AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge } from '@/components/admin/OrderDrawer';
+import {
+  DELIVERY_SLOTS,
+  formatDeliverySlot,
+  formatDeliveryDate,
+  isDeliveryOverdue,
+  relativeDeliveryLabel,
+  todayDateInputValue,
+} from '@/lib/delivery';
 
 interface OrderItem {
   id: string;
@@ -62,6 +79,17 @@ interface Order {
   items: OrderItem[];
   invoiceUrl?: string;
   createdBy?: string;
+  deliveryDate?: string | null;
+  deliverySlot?: string | null;
+  deliveryDateHistory?: Array<{
+    from: string | null;
+    to: string | null;
+    slot_from: string | null;
+    slot_to: string | null;
+    reason: string;
+    by: string;
+    at: string;
+  }>;
 }
 
 interface OrderDetailsPageProps {
@@ -93,6 +121,11 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [comment, setComment] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [deliverySlot, setDeliverySlot] = useState('');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [editingDelivery, setEditingDelivery] = useState(false);
+  const [reschedulingSubmitting, setReschedulingSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editItems, setEditItems] = useState<EditItem[]>([]);
@@ -220,16 +253,34 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
   const updateOrderStatus = async (newStatus: string) => {
     if (!order) return;
+    if (newStatus === 'Confirmed' && (!deliveryDate || !deliverySlot)) {
+      toast({
+        title: 'Delivery details required',
+        description: 'Please select a delivery date and slot before confirming the order.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setUpdating(true);
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, comment: comment.trim() || undefined }),
+        body: JSON.stringify({
+          status: newStatus,
+          comment: comment.trim() || undefined,
+          deliveryDate: newStatus === 'Confirmed' ? deliveryDate : undefined,
+          deliverySlot: newStatus === 'Confirmed' ? deliverySlot : undefined,
+        }),
       });
       if (response.ok) {
         const data = await response.json();
-        setOrder({ ...order, status: data.status });
+        setOrder({
+          ...order,
+          status: data.status,
+          deliveryDate: data.deliveryDate ?? order.deliveryDate,
+          deliverySlot: data.deliverySlot ?? order.deliverySlot,
+        });
         setComment('');
         toast({ title: 'Success', description: `Order status updated to ${newStatus}` });
       } else {
@@ -240,6 +291,48 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       toast({ title: 'Error', description: 'Failed to update order status', variant: 'destructive' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const submitReschedule = async () => {
+    if (!order) return;
+    if (!deliveryDate || !deliverySlot) {
+      toast({ title: 'Missing details', description: 'Date and slot are required.', variant: 'destructive' });
+      return;
+    }
+    if (!rescheduleReason.trim()) {
+      toast({ title: 'Reason required', description: 'Please provide a reason for rescheduling.', variant: 'destructive' });
+      return;
+    }
+    setReschedulingSubmitting(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryDate,
+          deliverySlot,
+          rescheduleReason: rescheduleReason.trim(),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setOrder({
+          ...order,
+          deliveryDate: data.deliveryDate ?? deliveryDate,
+          deliverySlot: data.deliverySlot ?? deliverySlot,
+        });
+        setEditingDelivery(false);
+        setRescheduleReason('');
+        toast({ title: 'Rescheduled', description: 'Delivery details updated.' });
+      } else {
+        const err = await response.json();
+        toast({ title: 'Error', description: err.error || 'Failed to reschedule', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to reschedule delivery', variant: 'destructive' });
+    } finally {
+      setReschedulingSubmitting(false);
     }
   };
 
@@ -496,6 +589,31 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                   </span>
                   <span className="text-[15px] font-bold tabular-nums text-slate-900">{order.items.reduce((sum, item) => sum + item.quantity, 0)}</span>
                 </div>
+                <Separator className="bg-slate-100" />
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-[13px] text-slate-500 flex items-center gap-2">
+                    <Truck className="h-3.5 w-3.5" /> Delivery
+                  </span>
+                  <div className="text-right">
+                    {order.deliveryDate ? (
+                      <>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-[13px] font-medium text-slate-900">{formatDeliveryDate(order.deliveryDate)}</span>
+                          {isDeliveryOverdue(order.deliveryDate, order.status) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">
+                              <AlertTriangle className="h-2.5 w-2.5" /> Overdue
+                            </span>
+                          )}
+                        </div>
+                        {order.deliverySlot && (
+                          <div className="text-[11px] text-slate-400 mt-0.5">{formatDeliverySlot(order.deliverySlot)}</div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-[12px] text-slate-400 italic">Not scheduled</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -504,46 +622,138 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 mb-4">Update Status</h3>
 
               {order.status.toLowerCase() === 'ordered' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Delivery Date */}
                   <div>
-                    <label className="text-[12px] font-medium text-slate-500 flex items-center gap-1.5 mb-1.5">
-                      <MessageSquare className="h-3 w-3" /> Admin Comment <span className="text-slate-300">(optional)</span>
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                      <Calendar className="h-3 w-3" /> Delivery Date
                     </label>
-                    <Textarea
-                      placeholder="Add a note for this order, e.g. items verified, partial stock..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="min-h-[80px] text-[13px] bg-slate-50/80 border-slate-200/60 rounded-xl resize-none focus-visible:ring-1 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300 placeholder:text-slate-400"
+                    <input
+                      type="date"
+                      min={todayDateInputValue()}
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                      className="w-full h-11 text-[13px] px-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-400 transition-shadow shadow-sm"
                     />
                   </div>
+
+                  {/* Delivery Slot — chip group (no dropdown, no overlap) */}
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                      <Clock className="h-3 w-3" /> Time Slot
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {DELIVERY_SLOTS.map((s) => {
+                        const active = deliverySlot === s.value;
+                        return (
+                          <button
+                            key={s.value}
+                            type="button"
+                            onClick={() => setDeliverySlot(s.value)}
+                            className={`relative flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                              active
+                                ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-violet-50 ring-2 ring-indigo-500/15 shadow-sm'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`text-[12px] font-semibold ${active ? 'text-indigo-700' : 'text-slate-700'}`}>
+                              {s.label}
+                            </span>
+                            <span className={`text-[10px] leading-tight ${active ? 'text-indigo-500' : 'text-slate-400'}`}>
+                              {s.range}
+                            </span>
+                            {active && (
+                              <CheckCircle className="absolute top-1.5 right-1.5 h-3 w-3 text-indigo-600" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Comment */}
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                      <MessageSquare className="h-3 w-3" /> Admin Comment <span className="text-slate-300 font-normal normal-case tracking-normal">(optional)</span>
+                    </label>
+                    <Textarea
+                      placeholder="Items verified, partial stock, customer note..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="min-h-[72px] text-[13px] bg-white border-slate-200 rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-400 placeholder:text-slate-400"
+                    />
+                  </div>
+
                   <Button
                     onClick={() => updateOrderStatus('Confirmed')}
-                    disabled={updating}
-                    className="w-full h-10 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium text-[13px] rounded-xl shadow-sm shadow-indigo-500/25"
+                    disabled={updating || !deliveryDate || !deliverySlot}
+                    className="w-full h-11 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-[13px] rounded-xl shadow-md shadow-indigo-500/25 disabled:shadow-none disabled:opacity-50"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    {updating ? 'Updating...' : 'Confirm Order'}
+                    {updating ? 'Confirming...' : 'Confirm Order'}
                   </Button>
                 </div>
               )}
 
               {order.status.toLowerCase() === 'confirmed' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Scheduled delivery summary */}
+                  <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Truck className="h-3 w-3 text-indigo-500" />
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Scheduled Delivery</span>
+                        </div>
+                        <div className="text-[14px] font-semibold text-slate-900 leading-tight">
+                          {order.deliveryDate ? formatDeliveryDate(order.deliveryDate) : '—'}
+                        </div>
+                        {order.deliverySlot && (
+                          <div className="text-[12px] text-slate-500 mt-0.5">{order.deliverySlot} · {DELIVERY_SLOTS.find(s => s.value === order.deliverySlot)?.range}</div>
+                        )}
+                        <div className="mt-2">
+                          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full ${
+                            isDeliveryOverdue(order.deliveryDate, order.status)
+                              ? 'bg-red-50 text-red-600 border border-red-200'
+                              : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+                          }`}>
+                            {isDeliveryOverdue(order.deliveryDate, order.status) && <AlertTriangle className="h-2.5 w-2.5" />}
+                            {relativeDeliveryLabel(order.deliveryDate, order.status)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDelivery(true);
+                          setDeliveryDate(order.deliveryDate || '');
+                          setDeliverySlot(order.deliverySlot || '');
+                          setRescheduleReason('');
+                        }}
+                        className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 px-2.5 py-1 rounded-lg hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-colors"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Reschedule
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Comment */}
                   <div>
-                    <label className="text-[12px] font-medium text-slate-500 flex items-center gap-1.5 mb-1.5">
-                      <MessageSquare className="h-3 w-3" /> Admin Comment <span className="text-slate-300">(optional)</span>
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                      <MessageSquare className="h-3 w-3" /> Admin Comment <span className="text-slate-300 font-normal normal-case tracking-normal">(optional)</span>
                     </label>
                     <Textarea
-                      placeholder="Add delivery details, tracking info..."
+                      placeholder="Delivery details, tracking info, special instructions..."
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      className="min-h-[80px] text-[13px] bg-slate-50/80 border-slate-200/60 rounded-xl resize-none focus-visible:ring-1 focus-visible:ring-indigo-500/30 focus-visible:border-indigo-300 placeholder:text-slate-400"
+                      className="min-h-[72px] text-[13px] bg-white border-slate-200 rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-emerald-500/15 focus-visible:border-emerald-400 placeholder:text-slate-400"
                     />
                   </div>
                   <Button
                     onClick={() => updateOrderStatus('Delivered')}
                     disabled={updating}
-                    className="w-full h-10 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-[13px] rounded-xl shadow-sm shadow-emerald-500/25"
+                    className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-[13px] rounded-xl shadow-md shadow-emerald-500/25"
                   >
                     <Truck className="h-4 w-4 mr-2" />
                     {updating ? 'Updating...' : 'Mark as Delivered'}
@@ -852,6 +1062,113 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
             </div>
           </div>
         </div>
+
+        {/* Reschedule Delivery Dialog */}
+        <Dialog open={editingDelivery} onOpenChange={(o) => { if (!o) { setEditingDelivery(false); setRescheduleReason(''); } }}>
+          <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-slate-50 to-white">
+              <DialogHeader className="space-y-1.5">
+                <DialogTitle className="text-[17px] font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600">
+                    <Calendar className="h-4 w-4" />
+                  </span>
+                  Reschedule Delivery
+                </DialogTitle>
+                <DialogDescription className="text-[12.5px] text-slate-500">
+                  Update the delivery date or time slot. The customer will be notified.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Currently scheduled */}
+              {(order.deliveryDate || order.deliverySlot) && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                  <div className="text-[12px] text-slate-500">
+                    Currently:{' '}
+                    <span className="font-semibold text-slate-700">
+                      {order.deliveryDate ? formatDeliveryDate(order.deliveryDate) : '—'}
+                      {order.deliverySlot && <> · {order.deliverySlot}</>}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* New date */}
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                  <Calendar className="h-3 w-3" /> New Delivery Date
+                </label>
+                <input
+                  type="date"
+                  min={todayDateInputValue()}
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="w-full h-11 text-[13px] px-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-400 shadow-sm"
+                />
+              </div>
+
+              {/* New slot — chip group */}
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                  <Clock className="h-3 w-3" /> New Time Slot
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {DELIVERY_SLOTS.map((s) => {
+                    const active = deliverySlot === s.value;
+                    return (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => setDeliverySlot(s.value)}
+                        className={`relative flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+                          active
+                            ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-violet-50 ring-2 ring-indigo-500/15'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className={`text-[12px] font-semibold ${active ? 'text-indigo-700' : 'text-slate-700'}`}>{s.label}</span>
+                        <span className={`text-[10px] leading-tight ${active ? 'text-indigo-500' : 'text-slate-400'}`}>{s.range}</span>
+                        {active && <CheckCircle className="absolute top-1.5 right-1.5 h-3 w-3 text-indigo-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-slate-500 flex items-center gap-1.5 mb-2">
+                  <MessageSquare className="h-3 w-3" /> Reason <span className="text-red-500 font-normal normal-case tracking-normal">*</span>
+                </label>
+                <Textarea
+                  placeholder="Customer request, stock unavailable, route change..."
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  className="min-h-[72px] text-[13px] bg-white border-slate-200 rounded-xl resize-none focus-visible:ring-2 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-400 placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex-row gap-2 sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => { setEditingDelivery(false); setRescheduleReason(''); }}
+                className="h-9 px-4 text-[13px] font-medium border-slate-200 text-slate-700 hover:bg-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={submitReschedule}
+                disabled={reschedulingSubmitting || !deliveryDate || !deliverySlot || !rescheduleReason.trim()}
+                className="h-9 px-5 text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 disabled:shadow-none"
+              >
+                {reschedulingSubmitting ? 'Saving...' : 'Save Reschedule'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
   );
 }

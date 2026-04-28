@@ -551,20 +551,29 @@ export default function CustomerForm({ mode, initialData, onSubmitSuccess, right
                             </div>
 
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold ${
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
                                     formData.customerType === 'wholesale'
-                                        ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
-                                        : 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                                        : 'bg-blue-50 text-blue-700 border-blue-200/60'
                                 }`}>
+                                    {formData.customerType === 'wholesale' ? (
+                                        <Store className="h-2.5 w-2.5" />
+                                    ) : (
+                                        <User className="h-2.5 w-2.5" />
+                                    )}
                                     {formData.customerType === 'wholesale' ? 'Wholesale' : 'Retail'}
                                 </span>
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold ${
-                                    formData.status === 'active'
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
-                                        : 'bg-red-50 text-red-600 border border-red-200/60'
-                                }`}>
-                                    {formData.status === 'active' ? 'Active' : 'Inactive'}
-                                </span>
+                                {formData.status === 'active' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                        Active
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-50 text-slate-600 border border-slate-200/60">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                                        Inactive
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -574,7 +583,7 @@ export default function CustomerForm({ mode, initialData, onSubmitSuccess, right
                             <div className="flex gap-2">
                                 {[
                                     { value: 'active', label: 'Active', dot: 'bg-emerald-500' },
-                                    { value: 'inactive', label: 'Inactive', dot: 'bg-red-400' },
+                                    { value: 'inactive', label: 'Inactive', dot: 'bg-slate-400' },
                                 ].map(option => (
                                     <button
                                         key={option.value}
@@ -584,7 +593,7 @@ export default function CustomerForm({ mode, initialData, onSubmitSuccess, right
                                             formData.status === option.value
                                                 ? option.value === 'active'
                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                                                    : 'bg-red-50 text-red-700 border-red-300'
+                                                    : 'bg-slate-50 text-slate-700 border-slate-300'
                                                 : 'bg-white text-slate-500 border-slate-200/80 hover:border-slate-300 hover:bg-slate-50'
                                         }`}
                                     >
