@@ -23,6 +23,7 @@ import {
   Mail,
   Hash,
   AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -64,6 +65,9 @@ export interface Order {
   createdBy?: string;
   deliveryDate?: string | null;
   deliverySlot?: string | null;
+  cancellationReason?: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
 }
 
 export interface ConfirmOrderPayload {
@@ -80,6 +84,10 @@ interface OrderDrawerProps {
     newStatus: string,
     extra?: ConfirmOrderPayload,
   ) => Promise<void>;
+  onCancelOrder?: (
+    orderId: string,
+    reason: string,
+  ) => Promise<void>;
 }
 
 export function getStatusConfig(status: string) {
@@ -91,6 +99,8 @@ export function getStatusConfig(status: string) {
       return { label: 'Confirmed', className: 'bg-blue-50 text-blue-700 border-blue-200/60', dot: 'bg-blue-500', dotPulse: false };
     case 'delivered':
       return { label: 'Delivered', className: 'bg-emerald-50 text-emerald-700 border-emerald-200/60', dot: 'bg-emerald-500', dotPulse: false };
+    case 'cancelled':
+      return { label: 'Cancelled', className: 'bg-red-50 text-red-700 border-red-200/60', dot: 'bg-red-500', dotPulse: false };
     default:
       return { label: status, className: 'bg-slate-50 text-slate-600 border-slate-200/60', dot: 'bg-slate-400', dotPulse: false };
   }
@@ -133,6 +143,12 @@ function formatTime(dateString: string) {
 // Timeline step data
 function getTimeline(status: string, createdAt: string, updatedAt: string) {
   const s = status.toLowerCase();
+  if (s === 'cancelled') {
+    return [
+      { label: 'Ordered', time: formatDate(createdAt) + ' • ' + formatTime(createdAt), done: true },
+      { label: 'Cancelled', time: formatDate(updatedAt) + ' • ' + formatTime(updatedAt), done: true, cancelled: true },
+    ];
+  }
   const steps = [
     { label: 'Ordered', time: formatDate(createdAt) + ' • ' + formatTime(createdAt), done: true },
     { label: 'Confirmed', time: s === 'confirmed' || s === 'delivered' ? formatDate(updatedAt) : '', done: s === 'confirmed' || s === 'delivered' },
@@ -141,11 +157,14 @@ function getTimeline(status: string, createdAt: string, updatedAt: string) {
   return steps;
 }
 
-export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate }: OrderDrawerProps) {
+export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate, onCancelOrder }: OrderDrawerProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   if (!order) return null;
 
@@ -160,6 +179,18 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
       await onStatusUpdate(order.id, newStatus, extra);
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!onCancelOrder || !cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      await onCancelOrder(order.id, cancelReason.trim());
+      setShowCancelConfirm(false);
+      setCancelReason('');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -269,13 +300,13 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
                   <div key={step.label} className="flex gap-3">
                     {/* Connector line + dot */}
                     <div className="flex flex-col items-center">
-                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${step.done ? 'bg-indigo-500' : 'bg-slate-200'}`} />
+                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${(step as any).cancelled ? 'bg-red-500' : step.done ? 'bg-indigo-500' : 'bg-slate-200'}`} />
                       {idx < timeline.length - 1 && (
-                        <div className={`w-px flex-1 my-1 ${step.done ? 'bg-indigo-300' : 'bg-slate-200'}`} />
+                        <div className={`w-px flex-1 my-1 ${(step as any).cancelled ? 'bg-red-300' : step.done ? 'bg-indigo-300' : 'bg-slate-200'}`} />
                       )}
                     </div>
                     <div className="pb-4">
-                      <p className={`text-[13px] font-medium ${step.done ? 'text-slate-900' : 'text-slate-400'}`}>{step.label}</p>
+                      <p className={`text-[13px] font-medium ${(step as any).cancelled ? 'text-red-600' : step.done ? 'text-slate-900' : 'text-slate-400'}`}>{step.label}</p>
                       {step.time && <p className="text-[11px] text-slate-400 mt-0.5">{step.time}</p>}
                       {step.label === 'Confirmed' && step.done && order.deliveryDate && (
                         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
@@ -361,6 +392,66 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate 
             <div className="flex items-center justify-center gap-2 py-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               <span className="text-[13px] font-medium text-emerald-600">Order Delivered</span>
+            </div>
+          )}
+          {statusLower === 'cancelled' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2 py-1.5">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <span className="text-[13px] font-medium text-red-600">Order Cancelled</span>
+              </div>
+              {order.cancellationReason && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200/60">
+                  <p className="text-[11px] font-semibold text-red-700 mb-0.5">Reason</p>
+                  <p className="text-[12px] text-red-600">{order.cancellationReason}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Cancel Order button — visible for Ordered & Confirmed */}
+          {(statusLower === 'ordered' || statusLower === 'confirmed') && onCancelOrder && !showCancelConfirm && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-9 text-[13px] font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              onClick={() => setShowCancelConfirm(true)}
+            >
+              <XCircle className="h-3.5 w-3.5 mr-1.5" />
+              Cancel Order
+            </Button>
+          )}
+
+          {/* Cancel confirmation inline */}
+          {showCancelConfirm && (
+            <div className="space-y-2 p-3 rounded-xl bg-red-50/50 border border-red-200/60">
+              <p className="text-[12px] font-semibold text-red-700">Are you sure you want to cancel this order?</p>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation (required)..."
+                rows={2}
+                className="w-full text-[12px] px-2.5 py-2 bg-white border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/15 focus:border-red-400 placeholder:text-slate-400 resize-none"
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-8 text-[12px] border-slate-200 text-slate-600"
+                  onClick={() => { setShowCancelConfirm(false); setCancelReason(''); }}
+                  disabled={cancelling}
+                >
+                  Go Back
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 h-8 text-[12px] bg-red-600 hover:bg-red-700 text-white"
+                  onClick={handleCancel}
+                  disabled={cancelling || !cancelReason.trim()}
+                >
+                  {cancelling ? 'Cancelling...' : 'Confirm Cancel'}
+                </Button>
+              </div>
             </div>
           )}
 

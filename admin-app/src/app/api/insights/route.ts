@@ -104,8 +104,8 @@ export async function GET() {
                 }
             }
 
-            // Build per-customer history
-            if (cust && cust.id) {
+            // Build per-customer history (skip cancelled orders)
+            if (cust && cust.id && status !== 'cancelled') {
                 const existing = customerMap.get(cust.id);
                 if (existing) {
                     existing.orderDates.push(new Date(createdAt));

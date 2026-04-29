@@ -17,6 +17,7 @@ import {
   Timer,
   Truck,
   AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import StatCard from '@/components/admin/StatCard';
@@ -55,7 +56,7 @@ export default function AdminPanel() {
     const status = params.get('status');
     const search = params.get('search');
     const validDelivery = ['today', 'tomorrow', 'this_week', 'overdue', 'unassigned'];
-    const validStatus = ['ordered', 'confirmed', 'delivered'];
+    const validStatus = ['ordered', 'confirmed', 'delivered', 'cancelled'];
     if (delivery && validDelivery.includes(delivery)) setDeliveryFilter(delivery);
     if (status && validStatus.includes(status.toLowerCase())) setStatusFilter(status.toLowerCase());
     if (search) setSearchTerm(search);
@@ -174,6 +175,7 @@ export default function AdminPanel() {
     const pending = orders.filter(o => o.status.toLowerCase() === 'ordered').length;
     const confirmed = orders.filter(o => o.status.toLowerCase() === 'confirmed').length;
     const delivered = orders.filter(o => o.status.toLowerCase() === 'delivered').length;
+    const cancelled = orders.filter(o => o.status.toLowerCase() === 'cancelled').length;
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const dueToday = orders.filter((o) => {
       if (!o.deliveryDate || o.status.toLowerCase() === 'delivered') return false;
@@ -181,7 +183,7 @@ export default function AdminPanel() {
       return d.getTime() === today.getTime();
     }).length;
     const overdue = orders.filter((o) => isDeliveryOverdue(o.deliveryDate, o.status)).length;
-    return { total, pending, confirmed, delivered, dueToday, overdue };
+    return { total, pending, confirmed, delivered, cancelled, dueToday, overdue };
   }, [orders]);
 
   const [showInsights, setShowInsights] = useState(true);
@@ -239,11 +241,12 @@ export default function AdminPanel() {
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 mb-6">
         <StatCard label="Total Orders" value={stats.total} icon={<ShoppingBag className="h-4 w-4" />} color="neutral" trend={{ value: '20% from last 7 days', positive: true }} />
         <StatCard label="Ordered" value={stats.pending} icon={<Clock className="h-4 w-4" />} color="amber" trend={{ value: '10% from last 7 days', positive: true }} />
         <StatCard label="Confirmed" value={stats.confirmed} icon={<CheckCircle2 className="h-4 w-4" />} color="emerald" trend={{ value: '15% from last 7 days', positive: true }} />
         <StatCard label="Delivered" value={stats.delivered} icon={<CircleDot className="h-4 w-4" />} color="emerald" trend={{ value: '25% from last 7 days', positive: true }} />
+        <StatCard label="Cancelled" value={stats.cancelled} icon={<XCircle className="h-4 w-4" />} color={stats.cancelled > 0 ? 'amber' : 'neutral'} />
         <StatCard label="Due Today" value={stats.dueToday} icon={<Truck className="h-4 w-4" />} color="amber" />
         <StatCard label="Overdue" value={stats.overdue} icon={<AlertTriangle className="h-4 w-4" />} color={stats.overdue > 0 ? 'amber' : 'neutral'} />
       </div>

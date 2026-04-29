@@ -24,9 +24,10 @@ const ORDER_SELECT = `
 `;
 
 // Valid status transitions: Ordered → Confirmed → Delivered
-const VALID_TRANSITIONS: Record<string, string> = {
-  Ordered: 'Confirmed',
-  Confirmed: 'Delivered',
+// Both Ordered and Confirmed can be cancelled.
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  Ordered: ['Confirmed', 'Cancelled'],
+  Confirmed: ['Delivered', 'Cancelled'],
 };
 
 // GET single order by ID
@@ -94,6 +95,9 @@ export async function GET(
             deliveryDate: (order as any).delivery_date || null,
             deliverySlot: (order as any).delivery_slot || null,
             deliveryDateHistory: (order as any).delivery_date_history || [],
+            cancellationReason: (order as any).cancellation_reason || null,
+            cancelledBy: (order as any).cancelled_by || null,
+            cancelledAt: (order as any).cancelled_at || null,
             items: (order.order_items || []).map((item: any) => {
                 const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
                 return {
@@ -137,12 +141,14 @@ export async function PATCH(
             deliveryDate,
             deliverySlot,
             rescheduleReason,
+            cancellationReason,
         }: {
             status?: string;
             comment?: string | null;
             deliveryDate?: string | null;
             deliverySlot?: string | null;
             rescheduleReason?: string | null;
+            cancellationReason?: string | null;
         } = body;
 
         // Fetch current order (needed for both status updates and reschedule).
@@ -172,14 +178,28 @@ export async function PATCH(
 
         // ----- Status transition -----
         if (isStatusChange) {
-            const allowedNext = VALID_TRANSITIONS[currentOrder.status];
-            if (allowedNext !== status) {
+            const allowedNext = VALID_TRANSITIONS[currentOrder.status] || [];
+            if (!allowedNext.includes(status!)) {
                 return NextResponse.json(
-                    { error: `Invalid transition: ${currentOrder.status} → ${status}. Allowed: ${currentOrder.status} → ${allowedNext || 'none (terminal state)'}` },
+                    { error: `Invalid transition: ${currentOrder.status} → ${status}. Allowed: ${currentOrder.status} → ${allowedNext.join(' or ') || 'none (terminal state)'}` },
                     { status: 400 }
                 );
             }
             updateData.status = status;
+
+            // ----- Cancellation -----
+            if (status === 'Cancelled') {
+                const reason = (cancellationReason || '').trim();
+                if (!reason) {
+                    return NextResponse.json(
+                        { error: 'A reason is required when cancelling an order.' },
+                        { status: 400 }
+                    );
+                }
+                updateData.cancellation_reason = reason;
+                updateData.cancelled_by = user.id || user.email || 'admin';
+                updateData.cancelled_at = new Date().toISOString();
+            }
 
             // Ordered → Confirmed requires delivery_date + delivery_slot.
             if (currentOrder.status === 'Ordered' && status === 'Confirmed') {
@@ -287,7 +307,7 @@ export async function PATCH(
         if (updateError) {
             console.error('Supabase error updating order:', updateError);
             return NextResponse.json(
-                { error: 'Failed to update order' },
+                { error: updateError.message || 'Failed to update order' },
                 { status: 500 }
             );
         }
@@ -360,6 +380,13 @@ export async function PATCH(
                         deliverySlot: finalDeliverySlot,
                         reason: (rescheduleReason || '').trim(),
                     });
+                } else if (isStatusChange && status === 'Cancelled') {
+                    await emailLib.sendOrderCancelledEmail({
+                        orderId: updatedOrder.id.toString(),
+                        customerName: profile.name || 'Customer',
+                        customerEmail: profile.email,
+                        reason: (cancellationReason || '').trim(),
+                    });
                 }
             } catch (emailError) {
                 console.error('Failed to send email:', emailError);
@@ -382,6 +409,9 @@ export async function PATCH(
                 } else if (status === 'Delivered') {
                     title = 'Order Delivered! 📦';
                     bodyText = `Your order ${orderRef} has been delivered.`;
+                } else if (status === 'Cancelled') {
+                    title = 'Order Cancelled ❌';
+                    bodyText = `Your order ${orderRef} has been cancelled. Reason: ${(cancellationReason || '').trim()}`;
                 }
                 if (title) {
                     await sendPushNotification(updatedOrder.user_id, {
@@ -406,8 +436,13 @@ export async function PATCH(
             status: updatedOrder.status,
             deliveryDate: finalDeliveryDate,
             deliverySlot: finalDeliverySlot,
+            cancellationReason: (updatedOrder as any).cancellation_reason || null,
+            cancelledBy: (updatedOrder as any).cancelled_by || null,
+            cancelledAt: (updatedOrder as any).cancelled_at || null,
             message: isReschedule
                 ? 'Delivery rescheduled successfully'
+                : status === 'Cancelled'
+                ? 'Order cancelled successfully'
                 : 'Order status updated successfully',
         });
     } catch (error) {

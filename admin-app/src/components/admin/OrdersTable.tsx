@@ -52,11 +52,12 @@ export default function OrdersTable({ orders, allOrdersCount, filteredCount, cur
               orders.map((order) => {
                 const totalQty = order.items.reduce((sum, item) => sum + item.quantity, 0);
                 const { date, time } = formatDate(order.createdAt);
+                const isCancelled = order.status.toLowerCase() === 'cancelled';
                 return (
                   <tr
                     key={order.id}
                     onClick={() => onOrderClick(order)}
-                    className="group border-b border-slate-50 last:border-0 hover:bg-slate-50/70 cursor-pointer transition-all duration-150"
+                    className={`group border-b border-slate-50 last:border-0 hover:bg-slate-50/70 cursor-pointer transition-all duration-150 ${isCancelled ? 'opacity-60' : ''}`}
                   >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">

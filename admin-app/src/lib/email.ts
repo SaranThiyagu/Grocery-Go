@@ -216,3 +216,47 @@ export async function sendDeliveryRescheduledEmail(data: DeliveryRescheduledEmai
     }
 }
 
+interface OrderCancelledEmailData {
+    orderId: string;
+    customerName: string;
+    customerEmail: string;
+    reason: string;
+}
+
+export async function sendOrderCancelledEmail(data: OrderCancelledEmailData) {
+    try {
+        const transporter = createTransporter();
+
+        const emailHtml = `
+        <!DOCTYPE html>
+        <html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(to right, #dc2626, #b91c1c); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 26px;">Order Cancelled ❌</h1>
+          </div>
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px;">Dear ${data.customerName},</p>
+            <p style="font-size: 16px;">We regret to inform you that your order <strong>#${data.orderId}</strong> has been cancelled.</p>
+            ${data.reason ? `
+            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
+              <p style="margin: 0; font-size: 16px;"><strong>Reason:</strong> ${data.reason}</p>
+            </div>
+            ` : ''}
+            <p style="font-size: 14px; color: #6b7280;">If you have any questions or would like to place a new order, please contact us.</p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
+              <p>© ${new Date().getFullYear()} Grocery-Go. All rights reserved.</p>
+            </div>
+          </div>
+        </body></html>`;
+
+        const info = await transporter.sendMail({
+            from: `"Grocery-Go" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+            to: data.customerEmail,
+            subject: `Order #${data.orderId} Cancelled - Grocery-Go`,
+            html: emailHtml,
+        });
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('Error sending cancellation email:', error);
+        return { success: false, error };
+    }
+}

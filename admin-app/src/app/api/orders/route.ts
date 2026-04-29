@@ -68,6 +68,9 @@ export async function GET() {
                 invoiceUrl: order.invoice_url || undefined,
                 deliveryDate: (order as any).delivery_date || null,
                 deliverySlot: (order as any).delivery_slot || null,
+                cancellationReason: (order as any).cancellation_reason || null,
+                cancelledBy: (order as any).cancelled_by || null,
+                cancelledAt: (order as any).cancelled_at || null,
                 items: (order.order_items || []).map((item: any) => {
                     const sizeMatch = item.name?.match(/\(([^)]+)\)$/);
                     return {

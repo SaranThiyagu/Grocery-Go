@@ -37,6 +37,7 @@ import {
   Search,
   Save,
   AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge } from '@/components/admin/OrderDrawer';
@@ -90,6 +91,9 @@ interface Order {
     by: string;
     at: string;
   }>;
+  cancellationReason?: string | null;
+  cancelledBy?: string | null;
+  cancelledAt?: string | null;
 }
 
 interface OrderDetailsPageProps {
@@ -133,6 +137,9 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -291,6 +298,41 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       toast({ title: 'Error', description: 'Failed to update order status', variant: 'destructive' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const cancelOrder = async () => {
+    if (!order || !cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Cancelled',
+          cancellationReason: cancelReason.trim(),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setOrder({
+          ...order,
+          status: data.status,
+          cancellationReason: data.cancellationReason,
+          cancelledBy: data.cancelledBy,
+          cancelledAt: data.cancelledAt,
+        });
+        setShowCancelConfirm(false);
+        setCancelReason('');
+        toast({ title: 'Order Cancelled', description: `Order #${order.id} has been cancelled.` });
+      } else {
+        const err = await response.json();
+        toast({ title: 'Error', description: err.error || 'Failed to cancel order', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to cancel order', variant: 'destructive' });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -767,6 +809,73 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                   <span className="text-[13px] font-medium text-emerald-600">Order Delivered</span>
                 </div>
               )}
+
+              {order.status.toLowerCase() === 'cancelled' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 py-2">
+                    <XCircle className="h-4 w-4 text-red-500" />
+                    <span className="text-[13px] font-medium text-red-600">Order Cancelled</span>
+                  </div>
+                  {order.cancellationReason && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200/60">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-red-700 mb-1">Reason</p>
+                      <p className="text-[13px] text-red-600">{order.cancellationReason}</p>
+                    </div>
+                  )}
+                  {order.cancelledAt && (
+                    <p className="text-[11px] text-slate-400 text-center">
+                      Cancelled on {formatDate(order.cancelledAt)} at {formatTime(order.cancelledAt)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Cancel Order */}
+              {(order.status.toLowerCase() === 'ordered' || order.status.toLowerCase() === 'confirmed') && (
+                <>
+                  <Separator className="bg-slate-100 my-4" />
+                  {!showCancelConfirm ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCancelConfirm(true)}
+                      className="w-full h-10 text-[13px] font-medium border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancel Order
+                    </Button>
+                  ) : (
+                    <div className="space-y-3 p-4 rounded-xl bg-red-50/50 border border-red-200/60">
+                      <p className="text-[13px] font-semibold text-red-700">Are you sure you want to cancel this order?</p>
+                      <p className="text-[12px] text-red-600/80">This action cannot be undone. The customer will be notified.</p>
+                      <textarea
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        placeholder="Reason for cancellation (required)..."
+                        rows={3}
+                        className="w-full text-[13px] px-3 py-2.5 bg-white border border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/15 focus:border-red-400 placeholder:text-slate-400 resize-none"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => { setShowCancelConfirm(false); setCancelReason(''); }}
+                          disabled={cancelling}
+                          className="flex-1 h-10 text-[13px] border-slate-200 text-slate-600 rounded-xl"
+                        >
+                          Go Back
+                        </Button>
+                        <Button
+                          onClick={cancelOrder}
+                          disabled={cancelling || !cancelReason.trim()}
+                          className="flex-1 h-10 text-[13px] bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-sm"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          {cancelling ? 'Cancelling...' : 'Confirm Cancel'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Invoice */}
@@ -859,7 +968,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                     {isEditing ? `${editItems.length} item${editItems.length !== 1 ? 's' : ''}` : `${order.items.length} item${order.items.length !== 1 ? 's' : ''} in this order`}
                   </p>
                 </div>
-                {order.status.toLowerCase() !== 'delivered' && !isEditing && (
+                {order.status.toLowerCase() !== 'delivered' && order.status.toLowerCase() !== 'cancelled' && !isEditing && (
                   <button
                     onClick={startEditing}
                     className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition-colors cursor-pointer"

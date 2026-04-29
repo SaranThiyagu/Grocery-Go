@@ -17,6 +17,7 @@ const statusPills = [
   { value: 'ordered', label: 'Ordered', activeClass: 'bg-orange-100 text-orange-700 border-orange-200' },
   { value: 'confirmed', label: 'Confirmed', activeClass: 'bg-blue-100 text-blue-700 border-blue-200' },
   { value: 'delivered', label: 'Delivered', activeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  { value: 'cancelled', label: 'Cancelled', activeClass: 'bg-red-100 text-red-700 border-red-200' },
 ];
 
 export default function FilterBar({
@@ -57,6 +58,7 @@ export default function FilterBar({
             <SelectItem value="ordered">Ordered</SelectItem>
             <SelectItem value="confirmed">Confirmed</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
 
@@ -71,6 +73,7 @@ export default function FilterBar({
               <SelectItem value="ordered">Ordered</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
           {statusPills.map((pill) => (
