@@ -27,6 +27,15 @@ export default function LoginForm() {
     try {
       setLoading(true);
       const supabase = createClient();
+      
+      // Debug: check if Supabase client is properly configured
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        console.error('Missing Supabase env vars:', {
+          url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+          key: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        });
+      }
+
       const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -39,7 +48,8 @@ export default function LoginForm() {
 
       router.push('/admin');
       router.refresh();
-    } catch {
+    } catch (err) {
+      console.error('Login error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
