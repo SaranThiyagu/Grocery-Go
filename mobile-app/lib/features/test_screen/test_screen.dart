@@ -4,6 +4,7 @@ import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
 
+import '../../core/utils/colors.dart';
 import '../../core/widgets/container_widget.dart';
 
 class TestScreen extends StatelessWidget {

@@ -6,14 +6,6 @@ import 'package:get/get.dart';
 class AppRoute {
   AppRoute._();
 
-  static void toNamed(String routeName, {dynamic arguments}) {
-    Get.toNamed(routeName, arguments: arguments);
-  }
-
-  static void offAllNamed(String routeName, {dynamic arguments}) {
-    Get.offAllNamed(routeName, arguments: arguments);
-  }
-
   static void getTo(Widget Function() route, {dynamic arguments,  String? routeName,Bindings? bindings}) {
     Get.to<dynamic>(
       route,

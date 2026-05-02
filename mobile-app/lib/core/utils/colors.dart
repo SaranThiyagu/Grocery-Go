@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 
 class ColorStyles{
 
-  static final  primaryColor      = HexColor("#ff000b");
+  static final  primaryColor      = HexColor("#24963f");
   static final  blackColor        = HexColor("#121212");
   static final  blackColor01      = HexColor("#3F3849");
   static final  blackColor02      = HexColor("#1e1e1e");
@@ -116,6 +116,15 @@ class ColorStyles{
   static const  backgroundColor   = Color(0XFFf3f3f3);
   static const  transparent       = Color(0x00000000);
 
+  // Modern UI Colors
+  static final  surfaceColor      = HexColor("#F8FAFC");
+  static final  cardColor         = HexColor("#FFFFFF");
+  static final  accentBlue        = HexColor("#3B82F6");
+  static final  accentIndigo      = HexColor("#6366F1");
+  static final  accentTeal        = HexColor("#14B8A6");
+  static final  textPrimary       = HexColor("#1E293B");
+  static final  textSecondary     = HexColor("#64748B");
+  static final  shadowColor       = Color(0x0F000000);
 }
 
 class HexColor extends Color {

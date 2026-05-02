@@ -1,68 +1,70 @@
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:loginapp/core/routes/app_routes.dart';
+import 'package:loginapp/core/widgets/app_entry.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/const.dart';
+import '../../utils/route_function.dart';
 import '../bindings/app_bindings.dart';
 
 
-class LocalStorage {
+class LocalStorage{
 
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(),
-    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
-  );
+  static final  _googleSignIn = GoogleSignIn();
 
-  static final _googleSignIn = GoogleSignIn();
-
-  static Future<Map<String, dynamic>> storeData(String key, dynamic data) async {
-    try {
-      String valueToStore;
+  static Future<Map<String,dynamic>> storeData(String key, dynamic data)async{
+    try{
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
       if (data is String) {
-        valueToStore = data;
-      } else if (data is bool || data is int || data is double) {
-        valueToStore = data.toString();
+        await prefs.setString(key, data);
+      } else if (data is bool) {
+        await prefs.setBool(key, data);
+      } else if (data is int) {
+        await prefs.setInt(key, data);
+      } else if (data is double) {
+        await prefs.setDouble(key, data);
+      } else if (data is List<String>) {
+        await prefs.setStringList(key, data);
       } else if (data is Map || data is List) {
-        valueToStore = jsonEncode(data);
+        String jsonString = jsonEncode(data);
+        await prefs.setString(key, jsonString);
       } else {
         return {"status": "fail", "msg": "Unsupported data type", "statusCode": 400};
       }
-      await _storage.write(key: key, value: valueToStore);
-      return {"status": "success", "msg": "Data Stored", "statusCode": 200};
-    } catch (e) {
-      return {"status": "fail", "msg": Const.errorMsg, "statusCode": 400};
+      return {"status":"success","msg":"Data Stored","statusCode":200};
+    }catch(e){
+      return {"status":"fail","msg":Const.errorMsg,"statusCode":400};
     }
   }
 
-  static Future<dynamic> getData(String key, {String? type = 'String'}) async {
-    try {
-      final data = await _storage.read(key: key);
-      if (data == null) return null;
-
-      if (type == 'String') {
+  static Future<dynamic> getData(String key,{String? type = 'String'})async{
+    try{
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      if(type == 'String'){
+        final data = prefs.getString(key);
         return data;
-      } else if (type == 'bool') {
-        return data == 'true';
+      }else if (type == "bool"){
+        final data = prefs.getBool(key);
+        return data;
       } else {
-        return jsonDecode(data);
+        final data = prefs.getString(key);
+        return jsonDecode(data!);
       }
-    } catch (e) {
+    }catch(e){
       return null;
+
     }
   }
 
-  static Future<void> clear() async {
-    await _storage.deleteAll();
-    AppBindings().dependencies();
-    Get.offAllNamed(AppRoutes.signIn);
+  static Future<void> clear()async{
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+     AppBindings().dependencies();
+      AppRoute.getOffAll(()=>const AppEntry());
   }
 
   static Future<void> logout() async {
-    await _storage.deleteAll();
-    await _googleSignIn.signOut();
-    Get.offAllNamed(AppRoutes.signIn);
-    AppBindings().dependencies();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
   }
 }

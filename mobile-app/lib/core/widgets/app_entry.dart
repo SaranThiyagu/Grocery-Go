@@ -3,8 +3,10 @@ import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:loginapp/features/auth/sign_in.dart';
+import 'package:loginapp/features/test_screen/test_screen.dart';
 
 import '../../features/dashboard/dashboard.dart';
+import '../../features/responsive/responsive.dart';
 import '../app/controllers/auth_controller.dart';
 import '../utils/colors.dart';
 

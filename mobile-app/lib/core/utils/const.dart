@@ -349,4 +349,5 @@ class Const {
   static const String picture = "picture";
   static const String fcmToken = "fcmToken";
 
+  static const String customerType = "customerType";
 }

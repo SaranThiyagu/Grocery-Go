@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:loginapp/core/app/controllers/dashboard_controller.dart';
 import 'package:loginapp/core/app/controllers/global_controller.dart';
-import 'package:loginapp/core/models/order_model.dart';
+import 'package:loginapp/core/app/controllers/local_storage_controller.dart' as app_storage;
 import 'package:loginapp/core/utils/colors.dart';
-import 'package:loginapp/core/routes/app_routes.dart';
+import 'package:loginapp/core/utils/route_function.dart';
 import 'package:loginapp/core/widgets/safe_area_widget.dart';
 import 'package:loginapp/core/widgets/text_widget.dart';
+import 'package:loginapp/features/order/order_screen.dart';
+import 'package:loginapp/features/profile/profile_screen.dart';
 import 'package:loginapp/features/responsive/responsive.dart';
 import 'package:loginapp/core/utils/responsive_utils.dart';
 import 'package:loginapp/core/app/controllers/auth_controller.dart';
+import 'package:loginapp/features/order_edit/edit_order_screen.dart';
 
 class Dashboard extends StatelessWidget {
   const Dashboard({super.key});
@@ -44,13 +47,13 @@ class _DashboardMobileState extends State<DashboardMobile> {
           fontSize: context.scale(16),
           fontWeight: FontWeight.bold,
         ),
-        backgroundColor: Colors.blue.shade800,
+        backgroundColor: ColorStyles.primaryColor,
         iconTheme: IconThemeData(color: ColorStyles.whiteColor),
         actions: [
           IconButton(
             icon: Icon(Icons.person),
             onPressed: () {
-              Get.toNamed(AppRoutes.profile);
+              AppRoute.getTo(() => ProfileScreen());
             },
           ),
           Padding(
@@ -63,97 +66,171 @@ class _DashboardMobileState extends State<DashboardMobile> {
         ],
       ),
       drawer: Drawer(
+        backgroundColor: ColorStyles.surfaceColor,
         child: Column(
           children: [
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue.shade800),
-              accountName: Text(gc.name.value),
-              accountEmail: Text(gc.email.value),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(gc.name.value.isNotEmpty ? gc.name.value[0] : 'U', style: TextStyle(color: Colors.blue.shade800, fontSize: 24)),
+            Container(
+              padding: EdgeInsets.fromLTRB(20, 60, 20, 30),
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [ColorStyles.accentIndigo, ColorStyles.accentBlue],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ),
-            ListTile(
-              leading: Icon(Icons.shopping_cart_outlined),
-              title: TextWidget(text: 'Shop Grocery', fontSize: context.scale(12), fontWeight: FontWeight.w600),
-              onTap: () {
-                Navigator.pop(context);
-                Get.toNamed(AppRoutes.order);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.logout_outlined),
-              title: TextWidget(text: 'Logout', fontSize: context.scale(12), fontWeight: FontWeight.w600),
-              onTap: () async {
-                Get.find<AuthController>().logout();
-              },
-            ),
-          ],
-        ),
-      ),
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(context.scale(16)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Banner
-                  Container(
-                    padding: EdgeInsets.all(context.scale(20)),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.purple.shade600]),
-                      borderRadius: BorderRadius.circular(16)
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextWidget(text: "Welcome back, ${gc.name.value}!", fontSize: context.scale(18), fontWeight: FontWeight.bold, color: Colors.white),
-                              SizedBox(height: 8),
-                              TextWidget(text: "Shop fresh Indian groceries and track your orders", fontSize: context.scale(12), color: Colors.blue.shade100),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.shopping_basket, color: Colors.white.withValues(alpha: 0.5), size: 48)
-                      ],
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: Colors.white.withOpacity(0.2),
+                    child: Text(
+                      gc.name.value.isNotEmpty ? gc.name.value[0] : 'U',
+                      style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  SizedBox(height: 24),
-                  
-                  // Stats Array
-                  Obx(() => GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.5,
-                    children: [
-                      _buildStatCard("Total Orders", controller.orderCount.toString(), Icons.inventory_2, Colors.indigo),
-                      _buildStatCard("Confirmed", controller.confirmedCount.toString(), Icons.verified, Colors.green),
-                      _buildStatCard("Processing", controller.processingCount.toString(), Icons.loop, Colors.blue),
-                      _buildStatCard("Completed", controller.completedCount.toString(), Icons.check_circle, Colors.teal),
-                    ],
-                  )),
-                  const SizedBox(height: 24),
-
-                  // Orders Header
-                  Obx(() => TextWidget(
-                    text: "Recent Orders (${controller.filteredAndSortedOrders.length})", 
-                    fontSize: context.scale(16), 
-                    fontWeight: FontWeight.bold
-                  )),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  TextWidget(text: gc.name.value, fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  TextWidget(text: gc.email.value, fontSize: 12, color: Colors.white70),
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 20),
+            _buildDrawerItem(Icons.shopping_bag_outlined, 'Shop Grocery', () {
+              Navigator.pop(context);
+              AppRoute.getTo(() => const OrderScreen());
+            }),
+            const Spacer(),
+            Divider(color: Colors.grey.shade200, indent: 20, endIndent: 20),
+            _buildDrawerItem(Icons.logout_rounded, 'Logout', () async {
+              Get.find<AuthController>().logout();
+            }, isLogout: true),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+      body: Container(
+        color: ColorStyles.surfaceColor,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(context.scale(20)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Professional Welcome Banner
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(context.scale(24)),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [ColorStyles.accentIndigo, ColorStyles.accentBlue],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: ColorStyles.accentIndigo.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          )
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            right: -20,
+                            bottom: -20,
+                            child: Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 100,
+                              color: Colors.white.withOpacity(0.1),
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextWidget(
+                                text: "Hello, ${gc.name.value}!",
+                                fontSize: context.scale(22),
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              TextWidget(
+                                text: "Ready for some fresh groceries today?",
+                                fontSize: context.scale(13),
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                              const SizedBox(height: 20),
+                              ElevatedButton(
+                                onPressed: () => AppRoute.getTo(() => const OrderScreen()),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: ColorStyles.accentIndigo,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  elevation: 0,
+                                ),
+                                child: const TextWidget(text: "Shop Now", fontWeight: FontWeight.bold, color: Colors.indigo),
+                              )
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    
+                    // Modern Stats Grid
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextWidget(text: "Quick Insights", fontSize: context.scale(16), fontWeight: FontWeight.bold, color: ColorStyles.textPrimary),
+                        Icon(Icons.insights_rounded, color: ColorStyles.textSecondary, size: 20),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Obx(() => GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 1.4,
+                      children: [
+                        _buildStatCard("Total Orders", controller.orderCount.toString(), Icons.inventory_2_outlined, ColorStyles.accentIndigo),
+                        _buildStatCard("Confirmed", controller.confirmedCount.toString(), Icons.verified_outlined, ColorStyles.accentTeal),
+                        _buildStatCard("Processing", controller.processingCount.toString(), Icons.cached_rounded, Colors.orange),
+                        _buildStatCard("Completed", controller.completedCount.toString(), Icons.check_circle_outline_rounded, Colors.green),
+                      ],
+                    )),
+                    const SizedBox(height: 32),
+  
+                    // Recent Orders Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Obx(() => TextWidget(
+                          text: "Recent Orders (${controller.filteredAndSortedOrders.length})", 
+                          fontSize: context.scale(16), 
+                          fontWeight: FontWeight.bold,
+                          color: ColorStyles.textPrimary,
+                        )),
+                        TextButton(
+                          onPressed: () {}, 
+                          child: TextWidget(text: "View All", color: ColorStyles.accentBlue, fontWeight: FontWeight.w600)
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
           
           // Orders List
           Obx(() {
@@ -183,67 +260,54 @@ class _DashboardMobileState extends State<DashboardMobile> {
                     return GestureDetector(
                       onTap: () => _showOrderDetails(order),
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                          color: ColorStyles.cardColor,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ColorStyles.shadowColor,
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            )
+                          ],
                         ),
                         child: Row(
                           children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: ColorStyles.accentIndigo.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.receipt_long_rounded, color: ColorStyles.accentIndigo, size: 24),
+                            ),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      TextWidget(text: order.orderNo, fontWeight: FontWeight.bold),
-                                      const SizedBox(width: 12),
+                                      TextWidget(text: order.orderNo, fontWeight: FontWeight.bold, fontSize: context.scale(14), color: ColorStyles.textPrimary),
                                       _buildStatusBadge(order.status),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  TextWidget(text: "${order.items.length} items", color: Colors.grey.shade600, fontSize: context.scale(12)),
                                   const SizedBox(height: 4),
+                                  TextWidget(text: "${order.items.length} items", color: ColorStyles.textSecondary, fontSize: context.scale(12)),
+                                  const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+                                      Icon(Icons.calendar_today_rounded, size: 12, color: ColorStyles.textSecondary),
                                       const SizedBox(width: 4),
-                                      TextWidget(text: "${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}", color: Colors.grey, fontSize: context.scale(10)),
+                                      TextWidget(text: "${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}", color: ColorStyles.textSecondary, fontSize: context.scale(11)),
                                     ],
                                   )
                                 ],
                               ),
                             ),
-                            
-                            // Actions
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () => _showOrderDetails(order),
-                                  icon: const Icon(Icons.remove_red_eye, size: 16),
-                                  label: const Text("View"),
-                                  style: TextButton.styleFrom(foregroundColor: Colors.indigo, padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                ),
-                                if (order.status == 'confirmed')
-                                  TextButton.icon(
-                                    onPressed: () => _showCancelDialog(order.id),
-                                    icon: const Icon(Icons.delete_outline, size: 16),
-                                    label: const Text("Cancel"),
-                                    style: TextButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                  ),
-                                if (order.status == 'processing')
-                                  TextButton.icon(
-                                    onPressed: () => controller.updateOrderStatus(order.id, 'completed'),
-                                    icon: const Icon(Icons.check_circle_outline, size: 16),
-                                    label: const Text("Complete"),
-                                    style: TextButton.styleFrom(foregroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                  )
-                              ],
-                            )
                           ],
                         ),
                       ),
@@ -258,29 +322,41 @@ class _DashboardMobileState extends State<DashboardMobile> {
           SliverToBoxAdapter(child: SizedBox(height: 32)),
         ],
       ),
+    ),
     );
   }
 
   Widget _buildStatCard(String title, String count, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        color: ColorStyles.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: ColorStyles.shadowColor,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: Icon(icon, color: color.withValues(alpha: 0.8), size: 28),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextWidget(text: title, fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-              TextWidget(text: count, fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+              TextWidget(text: count, fontSize: 22, fontWeight: FontWeight.bold, color: ColorStyles.textPrimary),
+              TextWidget(text: title, fontSize: 11, color: ColorStyles.textSecondary, fontWeight: FontWeight.w500),
             ],
           )
         ],
@@ -314,13 +390,26 @@ class _DashboardMobileState extends State<DashboardMobile> {
     );
   }
 
+  Widget _buildDrawerItem(IconData icon, String title, VoidCallback onTap, {bool isLogout = false}) {
+    return ListTile(
+      leading: Icon(icon, color: isLogout ? Colors.red.shade400 : ColorStyles.accentIndigo, size: 22),
+      title: TextWidget(
+        text: title, 
+        fontSize: 14, 
+        fontWeight: FontWeight.w600,
+        color: isLogout ? Colors.red.shade400 : ColorStyles.textPrimary,
+      ),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+    );
+  }
+
   void _showOrderDetails(OrderModel order) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Order Details - ${order.orderNo}"),
-        content: SizedBox(
-          width: double.maxFinite,
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,71 +417,121 @@ class _DashboardMobileState extends State<DashboardMobile> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStatusBadge(order.status),
-                  Text("${order.createdAt.day}/${order.createdAt.month}/${order.createdAt.year}", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  TextWidget(text: "Order Details", fontSize: 18, fontWeight: FontWeight.bold, color: ColorStyles.textPrimary),
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(Icons.close_rounded),
+                    style: IconButton.styleFrom(backgroundColor: ColorStyles.surfaceColor),
+                  )
                 ],
               ),
-              SizedBox(height: 16),
-              Text("Items", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              SizedBox(height: 8),
-              Expanded(
+              const SizedBox(height: 8),
+              TextWidget(text: "Order ID: ${order.orderNo}", fontSize: 12, color: ColorStyles.textSecondary),
+              const SizedBox(height: 20),
+              _buildStatusBadge(order.status),
+              const SizedBox(height: 24),
+              TextWidget(text: "Items", fontSize: 14, fontWeight: FontWeight.bold, color: ColorStyles.textPrimary),
+              const SizedBox(height: 12),
+              Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: order.items.length,
                   itemBuilder: (context, index) {
                     final item = order.items[index];
                     return Container(
-                      margin: EdgeInsets.only(bottom: 8),
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: ColorStyles.surfaceColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(item.name, style: TextStyle(fontWeight: FontWeight.w500)),
-                          Text("Qty: ${item.quantity}", style: TextStyle(color: Colors.grey.shade600)),
+                          TextWidget(text: item.name, fontWeight: FontWeight.w600, color: ColorStyles.textPrimary),
+                          TextWidget(text: "Qty: ${item.quantity}", color: ColorStyles.textSecondary),
                         ],
                       ),
                     );
                   },
                 ),
               ),
-              SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text("Total: \$${order.totalAmount.toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blue.shade800)),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              if (order.status.toLowerCase() == 'ordered') ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.back(); // close dialog
+                      AppRoute.getTo(() => EditOrderScreen(order: order));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: ColorStyles.accentIndigo,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: ColorStyles.accentIndigo),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_rounded, color: ColorStyles.accentIndigo, size: 18),
+                        const SizedBox(width: 8),
+                        const TextWidget(text: "Edit Order", fontWeight: FontWeight.bold),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ColorStyles.accentIndigo,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const TextWidget(text: "Close", fontWeight: FontWeight.bold, color: Colors.white),
+                ),
               )
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Close"),
-          )
-        ],
-      )
+      ),
     );
   }
 
   void _showCancelDialog(String orderId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Are you sure?"),
-        content: Text("This action cannot be undone. This will permanently cancel your order."),
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const TextWidget(text: "Cancel Order", fontSize: 18, fontWeight: FontWeight.bold),
+        content: const TextWidget(text: "Are you sure you want to cancel this order? This action cannot be undone.", color: ColorStyles.fontColor),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Close"),
+            onPressed: () => Get.back(),
+            child: const TextWidget(text: "Keep Order", fontWeight: FontWeight.bold, color: ColorStyles.fontColor),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             onPressed: () {
               controller.cancelOrder(orderId);
-              Navigator.pop(context);
-              Get.snackbar("Order cancelled", "Order has been cancelled successfully.", snackPosition: SnackPosition.BOTTOM);
+              Get.back();
+              Get.snackbar("Order cancelled", "Order has been cancelled successfully.", snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.white, colorText: Colors.black);
             },
-            child: Text("Confirm Cancellation"),
+            child: const TextWidget(text: "Yes, Cancel", fontWeight: FontWeight.bold, color: Colors.white),
           )
         ],
       )

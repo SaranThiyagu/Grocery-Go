@@ -1,63 +1,121 @@
 import 'package:get/get.dart';
-import 'package:loginapp/core/models/order_model.dart';
-import 'package:loginapp/core/repository/order_repository.dart';
+import 'package:loginapp/core/app/controllers/global_controller.dart';
+import 'package:loginapp/main.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class OrderItem {
+  final String productId;
+  final String name;
+  final int quantity;
+  final double price;
+
+  OrderItem({required this.productId, required this.name, required this.quantity, required this.price});
+}
+
+class OrderModel {
+  final String id;
+  final String orderNo;
+  final List<OrderItem> items;
+  final double totalAmount;
+  String status;
+  final DateTime createdAt;
+  DateTime updatedAt;
+
+  OrderModel({
+    required this.id,
+    required this.orderNo,
+    required this.items,
+    required this.totalAmount,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+}
 
 class DashboardController extends GetxController {
-  final OrderRepository _orderRepo = OrderRepository();
-
   final RxList<OrderModel> orders = <OrderModel>[].obs;
-  final RxBool isLoadingMore = false.obs;
-  final RxBool hasMore = true.obs;
-  int _currentPage = 0;
   
   final searchTerm = ''.obs;
   final statusFilter = 'all'.obs;
   final sortBy = 'date-desc'.obs;
 
+  RealtimeChannel? _orderChannel;
+
   @override
   void onInit() {
     super.onInit();
-    _fetchOrders();
-  }
-
-  Future<void> _fetchOrders() async {
-    _currentPage = 0;
-    hasMore.value = true;
-    final result = await _orderRepo.fetchOrders(page: 0);
-    orders.value = result;
-    hasMore.value = result.length >= OrderRepository.pageSize;
-  }
-
-  /// Load next page of orders.
-  Future<void> loadMore() async {
-    if (isLoadingMore.value || !hasMore.value) return;
-
-    isLoadingMore.value = true;
-    try {
-      _currentPage++;
-      final nextPage = await _orderRepo.fetchOrders(page: _currentPage);
-      if (nextPage.isEmpty) {
-        hasMore.value = false;
-      } else {
-        orders.addAll(nextPage);
-        hasMore.value = nextPage.length >= OrderRepository.pageSize;
-      }
-    } catch (_) {
-      _currentPage--;
-    } finally {
-      isLoadingMore.value = false;
+    
+    // Listen to user ID changes to fetch orders
+    final gc = Get.find<GlobalController>();
+    ever(gc.id, (_) => refreshOrders());
+    
+    // Initial fetch
+    if (gc.id.value.isNotEmpty) {
+      refreshOrders();
     }
+    
+    _setupRealtimeSubscription();
   }
 
-  /// Refresh orders from first page.
   @override
-  Future<void> refresh() async {
-    await _fetchOrders();
+  void onClose() {
+    _orderChannel?.unsubscribe();
+    super.onClose();
+  }
+
+  void _setupRealtimeSubscription() {
+    _orderChannel = supabase.channel('public:orders').onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'orders',
+      callback: (payload) {
+        refreshOrders(); // Re-fetch on any change
+      }
+    ).subscribe();
+  }
+
+  Future<void> refreshOrders() async {
+    try {
+      final gc = Get.find<GlobalController>();
+      if (gc.id.value.isEmpty) return;
+
+      final response = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('customer_id', gc.id.value)
+          .order('created_at', ascending: false);
+
+      final fetchedOrders = (response as List).map((o) {
+        return OrderModel(
+          id: o['id'].toString(),
+          orderNo: o['order_no'] ?? '',
+          items: (o['order_items'] as List).map((i) {
+            return OrderItem(
+              productId: i['product_id'].toString(),
+              name: i['name'] ?? '',
+              quantity: i['quantity'] ?? 1,
+              price: double.tryParse(i['price'].toString()) ?? 0.0,
+            );
+          }).toList(),
+          totalAmount: double.tryParse(o['total_amount'].toString()) ?? 0.0,
+          status: o['status'] ?? 'Ordered',
+          createdAt: DateTime.parse(o['created_at'].toString()),
+          updatedAt: o['updated_at'] != null 
+              ? DateTime.parse(o['updated_at'].toString()) 
+              : DateTime.parse(o['created_at'].toString()),
+        );
+      }).toList();
+
+      orders.value = fetchedOrders;
+    } catch (e) {
+      // Avoid showing snackbar on background refresh to keep it smooth
+      print('Fetch Orders Error: $e');
+    }
   }
 
   List<OrderModel> get filteredAndSortedOrders {
     var filtered = orders.where((order) {
-      if (statusFilter.value != 'all' && order.status != statusFilter.value) {
+      if (statusFilter.value != 'all' && order.status.toLowerCase() != statusFilter.value.toLowerCase()) {
         return false;
       }
       if (searchTerm.value.isNotEmpty) {
@@ -88,26 +146,32 @@ class DashboardController extends GetxController {
     return filtered;
   }
 
-  void cancelOrder(String orderId) {
-    orders.removeWhere((o) => o.id == orderId);
-    _orderRepo.deleteOrder(orderId);
+  Future<void> cancelOrder(String orderId) async {
+    try {
+      await supabase.from('orders').delete().eq('id', orderId);
+      // Real-time listener will handle the removal, but we can do it locally for speed
+      orders.removeWhere((o) => o.id == orderId);
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to delete order: $e');
+    }
   }
 
-  void updateOrderStatus(String orderId, String newStatus) {
-    final index = orders.indexWhere((o) => o.id == orderId);
-    if (index != -1) {
-      final order = orders[index];
-      order.status = newStatus;
-      order.updatedAt = DateTime.now();
-      orders[index] = order; // trigger reactive update
-      _orderRepo.updateStatus(orderId, newStatus);
+  Future<void> updateOrderStatus(String orderId, String newStatus) async {
+    try {
+      await supabase.from('orders').update({
+        'status': newStatus,
+        'updated_at': DateTime.now().toIso8601String()
+      }).eq('id', orderId);
+      // Real-time listener will handle the update
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to update order status: $e');
     }
   }
 
   int get orderCount => orders.length;
-  int get confirmedCount => orders.where((o) => o.status == 'confirmed').length;
-  int get processingCount => orders.where((o) => o.status == 'processing').length;
-  int get completedCount => orders.where((o) => o.status == 'completed').length;
-  double get totalSpent => orders.where((o) => o.status == 'completed').fold(0, (sum, order) => sum + order.totalAmount);
+  int get confirmedCount => orders.where((o) => o.status.toLowerCase() == 'confirmed').length;
+  int get processingCount => orders.where((o) => o.status.toLowerCase() == 'ordered').length;
+  int get completedCount => orders.where((o) => o.status.toLowerCase() == 'completed' || o.status.toLowerCase() == 'delivered').length;
+  double get totalSpent => orders.where((o) => o.status.toLowerCase() == 'completed' || o.status.toLowerCase() == 'delivered').fold(0, (sum, order) => sum + order.totalAmount);
 
 }

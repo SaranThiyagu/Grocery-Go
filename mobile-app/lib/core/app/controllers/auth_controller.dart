@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:loginapp/core/app/controllers/global_controller.dart';
 import 'package:loginapp/core/app/controllers/local_storage_controller.dart' as app_storage;
@@ -18,81 +20,131 @@ class AuthController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _setupAuthListener();
-    checkAuthState();
+    // checkAuthState is called by AppEntry on startup — no need to call here
   }
 
-  void _setupAuthListener() {
-    _supabase.auth.onAuthStateChange.listen((data) async {
-      final AuthChangeEvent event = data.event;
-      final Session? session = data.session;
-
-      Const.debug("Auth Event: $event");
-
-      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.tokenRefreshed) {
-        if (session != null) {
-          await _storeSessionDetails(session);
-          authState.value = AuthState.authenticated;
-        }
-      } else if (event == AuthChangeEvent.signedOut) {
-        authState.value = AuthState.unauthenticated;
-      }
-    });
-  }
-
-  Future<void> signInWithGmail() async {
+  Future<void> signInWithMobile(String mobile) async {
     try {
       isLoading.value = true;
       lastError.value = "";
-      Const.debug("Starting Native Google Sign In...");
-
-      // Get Web Client ID from .env
-      final webClientId = dotenv.env['SERVICECLIENTID'];
       
-      if (webClientId == null || webClientId.isEmpty) {
-        throw "SERVICECLIENTID not found in .env";
-      }
-
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId: webClientId,
-      );
+      final response = await _supabase
+          .from('customers')
+          .select()
+          .eq('mobile_no', mobile)
+          .maybeSingle();
       
-      final googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        isLoading.value = false;
-        return;
+      if (response != null) {
+        if (response['status'] == 'blocked' || response['status'] == 'inactive') {
+          lastError.value = "Your account is ${response['status']}. Please contact support.";
+        } else {
+          await _storeUserDetails(response);
+          authState.value = AuthState.authenticated;
+          // AppEntry's Obx reacts to authState — no manual navigation needed
+        }
+      } else {
+        lastError.value = "Number not registered. Please sign up first.";
       }
-
-      final googleAuth = await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw 'No ID Token found.';
-      }
-
-      await _supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: idToken,
-        accessToken: accessToken,
-      );
-
     } catch (e) {
-      Const.debug("Google Sign In Exception: $e");
+      Const.debug("Mobile Sign In Exception: $e");
       lastError.value = e.toString();
+    } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> _storeSessionDetails(Session session) async {
+  Future<void> signUpWithMobile({
+    required String mobile,
+    required String fullName,
+    String? storeName,
+    String? alternateContactNo,
+    String? email,
+    String? gstNo,
+    String? dob,
+    String? anniversary,
+    String? addressLine1,
+    String? addressLine2,
+    String? city,
+    String? state,
+    String? pincode,
+  }) async {
     try {
-      final user = session.user;
-      await app_storage.LocalStorage.storeData(Const.id, user.id);
-      await app_storage.LocalStorage.storeData(Const.name, user.userMetadata?['full_name'] ?? "");
-      await app_storage.LocalStorage.storeData(Const.email, user.email ?? "");
-      await app_storage.LocalStorage.storeData(Const.picture, user.userMetadata?['avatar_url'] ?? "");
-      await app_storage.LocalStorage.storeData(Const.mobile, user.phone ?? "");
+      isLoading.value = true;
+      lastError.value = "";
       
+      final existingUser = await _supabase
+          .from('customers')
+          .select()
+          .eq('mobile_no', mobile)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        lastError.value = "This mobile number is already registered. Try signing in.";
+        return;
+      }
+
+      final insertData = {
+        'mobile_no': mobile,
+        'full_name': fullName,
+      };
+
+      if (storeName != null && storeName.isNotEmpty) insertData['store_name'] = storeName;
+      if (alternateContactNo != null && alternateContactNo.isNotEmpty) insertData['alternate_contact_no'] = alternateContactNo;
+      if (email != null && email.isNotEmpty) insertData['email'] = email;
+      if (gstNo != null && gstNo.isNotEmpty) insertData['gst_no'] = gstNo;
+      if (dob != null && dob.isNotEmpty) insertData['date_of_birth'] = dob;
+      if (anniversary != null && anniversary.isNotEmpty) insertData['anniversary_date'] = anniversary;
+      if (addressLine1 != null && addressLine1.isNotEmpty) insertData['address_line1'] = addressLine1;
+      if (addressLine2 != null && addressLine2.isNotEmpty) insertData['address_line2'] = addressLine2;
+      if (city != null && city.isNotEmpty) insertData['city'] = city;
+      if (state != null && state.isNotEmpty) insertData['state'] = state;
+      if (pincode != null && pincode.isNotEmpty) insertData['pincode'] = pincode;
+
+      final response = await _supabase.from('customers').insert(insertData).select().single();
+      
+      if (response != null) {
+        await _storeUserDetails(response);
+        isLoading.value = false; // ensure loading hides before dialog
+        await Get.defaultDialog(
+          title: "Registration Successful",
+          middleText: "You have signed up successfully!",
+          backgroundColor: Colors.white,
+          titleStyle: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          middleTextStyle: const TextStyle(color: Colors.black87),
+          textConfirm: "Continue",
+          confirmTextColor: Colors.white,
+          buttonColor: const Color(0xFF1A73E8),
+          barrierDismissible: false,
+          onConfirm: () {
+            Get.back();
+          },
+        );
+        authState.value = AuthState.authenticated;
+        // AppEntry's Obx reacts to authState — no manual navigation needed
+      }
+    } catch (e) {
+      Const.debug("Mobile Sign Up Exception: $e");
+      lastError.value = e.toString();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _storeUserDetails(Map<String, dynamic> user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final String userId = user['id']?.toString().trim() ?? 
+                            user['mobile_no']?.toString().trim() ?? '';
+
+      await prefs.setString(Const.id,           userId);
+      await prefs.setString(Const.name,         user['full_name']?.toString()    ?? '');
+      await prefs.setString(Const.mobile,       user['mobile_no']?.toString()    ?? '');
+      await prefs.setString(Const.email,        user['email']?.toString()        ?? '');
+      await prefs.setString(Const.picture,      '');
+      await prefs.setString(Const.customerType, user['customer_type']?.toString() ?? 'retail');
+      await prefs.setBool('isLoggedIn', true); // dedicated session flag
+
       await Get.find<GlobalController>().loadData();
     } catch (e) {
       Const.debug("Error storing session: $e");
@@ -102,24 +154,20 @@ class AuthController extends GetxController {
   Future<void> checkAuthState() async {
     try {
       authState.value = AuthState.loading;
-      final session = _supabase.auth.currentSession;
-      
-      if (session != null) {
-        await _storeSessionDetails(session);
+
+      // Read directly from SharedPreferences — no wrapper layer
+      final prefs = await SharedPreferences.getInstance();
+      final String? id         = prefs.getString(Const.id);
+      final bool   isLoggedIn  = prefs.getBool('isLoggedIn') ?? false;
+
+      if (isLoggedIn && id != null && id.isNotEmpty) {
+        await Get.find<GlobalController>().loadData();
         authState.value = AuthState.authenticated;
       } else {
-        final id = await app_storage.LocalStorage.getData(Const.id);
-        if (id == null) {
-          authState.value = AuthState.unauthenticated;
-        } else {
-          // If we have an ID in local storage but no Supabase session, we might be unauthenticated
-          // or the session expired. Supabase client manages this, so if currentSession is null,
-          // we are effectively signed out from Supabase's perspective.
-          authState.value = AuthState.unauthenticated;
-        }
+        authState.value = AuthState.unauthenticated;
       }
     } catch (e) {
-      Const.debug({"error": e});
+      Const.debug("checkAuthState error: $e");
       authState.value = AuthState.unauthenticated;
     }
   }
@@ -127,26 +175,27 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     try {
       isLoading.value = true;
-      
-      // Sign out from Supabase
-      await _supabase.auth.signOut();
-      
-      // Sign out from Google to ensure account selection on next login
+
+      // Sign out from Google silently (ignore errors if not signed in)
       try {
         final GoogleSignIn googleSignIn = GoogleSignIn(
           serverClientId: dotenv.env['SERVICECLIENTID'],
         );
         await googleSignIn.signOut();
-      } catch (e) {
-        Const.debug("Error signing out from Google: $e");
-      }
+      } catch (_) {}
 
-      await app_storage.LocalStorage.logout(); // This clears prefs and redirects
-      await Get.find<GlobalController>().loadData(); // Reset data
+      // Clear all locally stored session data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      // Reset in-memory user data
+      await Get.find<GlobalController>().loadData();
+
+      // Set state → AppEntry's Obx will reactively show SignIn screen
       authState.value = AuthState.unauthenticated;
-      isLoading.value = false;
     } catch (e) {
-      Const.debug({"error": e});
+      Const.debug({"logout error": e});
+    } finally {
       isLoading.value = false;
     }
   }

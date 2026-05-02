@@ -48,8 +48,6 @@ dependencies:
   mailer: any
   supabase_flutter: any
   google_sign_in: ^6.2.1
-  flutter_secure_storage: ^10.0.0
-  cached_network_image: ^3.4.1
   
 dev_dependencies:
   flutter_test:
@@ -108,3 +106,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_icons/icon.png"
+  min_sdk_android: 21
