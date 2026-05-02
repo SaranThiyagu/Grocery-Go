@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gcm_defaultSenderId" translatable="false">251681154121</string>
+    <string name="google_api_key" translatable="false">AIzaSyD0uqWzJuw9GJiK9oweWveBiz5WtWyVlhI</string>
+    <string name="google_app_id" translatable="false">1:251681154121:android:74b6dce38fe3ee78eb4b98</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyD0uqWzJuw9GJiK9oweWveBiz5WtWyVlhI</string>
+    <string name="google_storage_bucket" translatable="false">taskme-app-fd065.firebasestorage.app</string>
+    <string name="project_id" translatable="false">taskme-app-fd065</string>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

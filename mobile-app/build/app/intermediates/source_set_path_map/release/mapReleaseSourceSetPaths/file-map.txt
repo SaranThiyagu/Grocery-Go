@@ -1,0 +1,52 @@
+com.demo.loginapp-transition-1.4.1-0 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\09f030976c8f93d6d822c316f8aa5fbd\transformed\transition-1.4.1\res
+com.demo.loginapp-slidingpanelayout-1.2.0-1 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\1274c153349486b69c430526066c2d19\transformed\slidingpanelayout-1.2.0\res
+com.demo.loginapp-appcompat-1.1.0-2 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\16a9f542091634cde17f12d908ee0c23\transformed\appcompat-1.1.0\res
+com.demo.loginapp-core-1.0.0-3 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\2b544663073a48ee4e1247a10e13b457\transformed\core-1.0.0\res
+com.demo.loginapp-fragment-1.7.1-4 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\2ec6ef6c2ea1edfdd422dfd26f12590f\transformed\fragment-1.7.1\res
+com.demo.loginapp-recyclerview-1.0.0-5 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\36a9129c9fc61e9649fa4de77182184b\transformed\recyclerview-1.0.0\res
+com.demo.loginapp-browser-1.8.0-6 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\3a843ddaf73e280a793a41039d790dec\transformed\browser-1.8.0\res
+com.demo.loginapp-lifecycle-livedata-core-2.7.0-7 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\3af26cb206c4b168171e6479f82196b2\transformed\lifecycle-livedata-core-2.7.0\res
+com.demo.loginapp-lifecycle-viewmodel-savedstate-2.7.0-8 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\4107456dbb5fe8d3e5ea296dd20de2dc\transformed\lifecycle-viewmodel-savedstate-2.7.0\res
+com.demo.loginapp-appcompat-resources-1.1.0-9 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\4545a9fd5e8fe8901325af85a57e0cb7\transformed\appcompat-resources-1.1.0\res
+com.demo.loginapp-play-services-auth-21.0.0-10 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\47e71a840ca753d9a64db5b313f0b654\transformed\play-services-auth-21.0.0\res
+com.demo.loginapp-fragment-ktx-1.7.1-11 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\499a1e644147a08980e3e28de8aa52dc\transformed\fragment-ktx-1.7.1\res
+com.demo.loginapp-play-services-basement-18.2.0-12 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\58e7c43aaa38829f1ce1f557803f73f9\transformed\play-services-basement-18.2.0\res
+com.demo.loginapp-startup-runtime-1.1.1-13 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\6c5e8ee3be1af8ebd6d5741af1858ab2\transformed\startup-runtime-1.1.1\res
+com.demo.loginapp-savedstate-1.2.1-14 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\6e4d98c022a713863e0f38791cef6f6c\transformed\savedstate-1.2.1\res
+com.demo.loginapp-play-services-base-18.0.1-15 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\7165afafd583e46d209e8bd79b3405d8\transformed\play-services-base-18.0.1\res
+com.demo.loginapp-activity-ktx-1.8.1-16 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\7c30a0ffdd68ff0c6298b162c2751e5c\transformed\activity-ktx-1.8.1\res
+com.demo.loginapp-lifecycle-runtime-ktx-2.7.0-17 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\836965ad0124a38a8589971b75d23869\transformed\lifecycle-runtime-ktx-2.7.0\res
+com.demo.loginapp-coordinatorlayout-1.0.0-18 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\83c4dacb17ab87b2d88f474976fd40f3\transformed\coordinatorlayout-1.0.0\res
+com.demo.loginapp-datastore-preferences-release-19 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\867dfd432752c37524a9e7dc49aea8bc\transformed\datastore-preferences-release\res
+com.demo.loginapp-window-java-1.2.0-20 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\8cb50862c88553cbd05fa6a5d721d74a\transformed\window-java-1.2.0\res
+com.demo.loginapp-window-1.2.0-21 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\8f15649cafdaa996f499e9b3fa12bf11\transformed\window-1.2.0\res
+com.demo.loginapp-lifecycle-process-2.7.0-22 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\99c100f8cbd9b6b7f0546b9939cec010\transformed\lifecycle-process-2.7.0\res
+com.demo.loginapp-core-ktx-1.13.1-23 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a06e5fef2ab02d49d70b9ac4ee19eaee\transformed\core-ktx-1.13.1\res
+com.demo.loginapp-annotation-experimental-1.4.0-24 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a341b4d8c1d43f78f1c2886e5d24663c\transformed\annotation-experimental-1.4.0\res
+com.demo.loginapp-datastore-release-25 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a4be520a25647beea1618b9bc5a9f7ea\transformed\datastore-release\res
+com.demo.loginapp-lifecycle-runtime-2.7.0-26 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a8601362c260b5a54198ccf6508550f3\transformed\lifecycle-runtime-2.7.0\res
+com.demo.loginapp-core-runtime-2.2.0-27 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a883c0125f6d37faaa7bd2a4fad0d4c7\transformed\core-runtime-2.2.0\res
+com.demo.loginapp-tracing-1.2.0-28 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a90182ceece0b41957aa6e5eb5e72a4c\transformed\tracing-1.2.0\res
+com.demo.loginapp-core-1.13.1-29 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\a96447e699993931e69b2de3497a0721\transformed\core-1.13.1\res
+com.demo.loginapp-preference-1.2.1-30 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\b85429b396b049598af134fe2e73c998\transformed\preference-1.2.1\res
+com.demo.loginapp-profileinstaller-1.3.1-31 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\ba353cc6c48ee05e441fb37428a6c796\transformed\profileinstaller-1.3.1\res
+com.demo.loginapp-lifecycle-livedata-core-ktx-2.7.0-32 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\c4c5684ea6635521b0978b57b28fa18e\transformed\lifecycle-livedata-core-ktx-2.7.0\res
+com.demo.loginapp-lifecycle-viewmodel-2.7.0-33 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\cc020bc31ce4da3f1d45d0646856a9cf\transformed\lifecycle-viewmodel-2.7.0\res
+com.demo.loginapp-activity-1.8.1-34 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\e08764cf3f7bbcbc508d95ed3d86a168\transformed\activity-1.8.1\res
+com.demo.loginapp-lifecycle-viewmodel-ktx-2.7.0-35 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\ec79c6edbc50dfeac42d247a8cdd5a97\transformed\lifecycle-viewmodel-ktx-2.7.0\res
+com.demo.loginapp-datastore-core-release-36 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\f337c7da82d6b2afd47fc85734b800c6\transformed\datastore-core-release\res
+com.demo.loginapp-savedstate-ktx-1.2.1-37 C:\Users\Mageshwaran.R\.gradle\caches\8.14\transforms\fe46def74b5a970a422fcd022d40bd1b\transformed\savedstate-ktx-1.2.1\res
+com.demo.loginapp-main-38 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\android\app\src\main\res
+com.demo.loginapp-release-39 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\android\app\src\release\res
+com.demo.loginapp-google-services-40 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\generated\res\google-services\release
+com.demo.loginapp-pngs-41 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\generated\res\pngs\release
+com.demo.loginapp-resValues-42 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\generated\res\resValues\release
+com.demo.loginapp-packageReleaseResources-43 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\intermediates\incremental\release\packageReleaseResources\merged.dir
+com.demo.loginapp-packageReleaseResources-44 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\intermediates\incremental\release\packageReleaseResources\stripped.dir
+com.demo.loginapp-merged-not-compiled-resources-45 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\intermediates\merged-not-compiled-resources\release
+com.demo.loginapp-release-46 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app\intermediates\merged_res\release\mergeReleaseResources
+com.demo.loginapp-release-47 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\app_links\intermediates\packaged_res\release\packageReleaseResources
+com.demo.loginapp-release-48 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\google_sign_in_android\intermediates\packaged_res\release\packageReleaseResources
+com.demo.loginapp-release-49 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\path_provider_android\intermediates\packaged_res\release\packageReleaseResources
+com.demo.loginapp-release-50 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\shared_preferences_android\intermediates\packaged_res\release\packageReleaseResources
+com.demo.loginapp-release-51 C:\Users\Mageshwaran.R\Downloads\taskme latest\taskme\build\url_launcher_android\intermediates\packaged_res\release\packageReleaseResources
