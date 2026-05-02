@@ -393,44 +393,6 @@ export async function PATCH(
             }
         }
 
-        // FCM push (status change or reschedule)
-        if (updatedOrder.user_id && (isStatusChange || isReschedule)) {
-            try {
-                const { sendPushNotification } = await import('@/lib/fcm');
-                const orderRef = `#${updatedOrder.order_no || updatedOrder.id}`;
-                let title = '';
-                let bodyText = '';
-                if (isReschedule) {
-                    title = 'Delivery rescheduled 🔄';
-                    bodyText = `Order ${orderRef} delivery moved to ${finalDeliveryDate || ''}, ${finalDeliverySlot || ''}.`;
-                } else if (status === 'Confirmed') {
-                    title = 'Order Confirmed! ✅';
-                    bodyText = `Your order ${orderRef} is confirmed. Delivery: ${finalDeliveryDate || ''}, ${finalDeliverySlot || ''}.`;
-                } else if (status === 'Delivered') {
-                    title = 'Order Delivered! 📦';
-                    bodyText = `Your order ${orderRef} has been delivered.`;
-                } else if (status === 'Cancelled') {
-                    title = 'Order Cancelled ❌';
-                    bodyText = `Your order ${orderRef} has been cancelled. Reason: ${(cancellationReason || '').trim()}`;
-                }
-                if (title) {
-                    await sendPushNotification(updatedOrder.user_id, {
-                        title,
-                        body: bodyText,
-                        data: {
-                            type: isReschedule ? 'order_delivery_reschedule' : 'order_status_update',
-                            orderId: updatedOrder.id.toString(),
-                            status: updatedOrder.status,
-                            deliveryDate: finalDeliveryDate || '',
-                            deliverySlot: finalDeliverySlot || '',
-                        },
-                    });
-                }
-            } catch (pushError) {
-                console.error('Failed to send push notification:', pushError);
-            }
-        }
-
         return NextResponse.json({
             id: updatedOrder.id.toString(),
             status: updatedOrder.status,

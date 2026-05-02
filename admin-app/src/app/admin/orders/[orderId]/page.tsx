@@ -140,6 +140,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -290,6 +291,11 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
         });
         setComment('');
         toast({ title: 'Success', description: `Order status updated to ${newStatus}` });
+        
+        // Notification Flow
+        if (newStatus === 'Confirmed' && data.id) {
+          await triggerNotification(orderId, order.userId);
+        }
       } else {
         const err = await response.json();
         toast({ title: 'Error', description: err.error || 'Failed to update status', variant: 'destructive' });
@@ -298,6 +304,33 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
       toast({ title: 'Error', description: 'Failed to update order status', variant: 'destructive' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const triggerNotification = async (orderId: string, userId: string) => {
+    setSendingNotification(true);
+    try {
+      // We call the API to send the notification. 
+      // The current API already does this on status change, but we can make it explicit 
+      // or ensure the user knows it's happening.
+      // If we want a separate step, we can create a dedicated API route.
+      
+      const response = await fetch(`/api/orders/${orderId}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        toast({ title: 'Notification Sent', description: 'Customer has been notified of the confirmation.' });
+      } else {
+        const err = await response.json();
+        toast({ title: 'Notification Failed', description: err.error || 'Could not notify customer', variant: 'destructive' });
+      }
+    } catch (e) {
+      toast({ title: 'Notification Error', description: 'An error occurred while sending notification', variant: 'destructive' });
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -728,11 +761,15 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
                   <Button
                     onClick={() => updateOrderStatus('Confirmed')}
-                    disabled={updating || !deliveryDate || !deliverySlot}
+                    disabled={updating || sendingNotification || !deliveryDate || !deliverySlot}
                     className="w-full h-11 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-[13px] rounded-xl shadow-md shadow-indigo-500/25 disabled:shadow-none disabled:opacity-50"
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {updating ? 'Confirming...' : 'Confirm Order'}
+                    {sendingNotification ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    {updating ? 'Confirming...' : sendingNotification ? 'Sending Notification...' : 'Confirm Order'}
                   </Button>
                 </div>
               )}

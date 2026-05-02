@@ -17,21 +17,26 @@ interface PushPayload {
  * Set env vars: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_PROJECT_ID
  */
 export async function sendPushNotification(userId: string, payload: PushPayload) {
-  // 1. Get all device tokens for this user
-  const { data: tokens, error } = await supabaseAdmin
-    .from('device_tokens')
-    .select('token')
-    .eq('user_id', userId);
+  // 1. Get FCM token for this user from the 'User' table
+  const { data: userData, error } = await supabaseAdmin
+    .from('User')
+    .select('fcm_token')
+    .eq('id', userId)
+    .single();
 
   if (error) {
-    console.error('Failed to fetch device tokens:', error);
+    console.error('Failed to fetch customer FCM token:', error);
     return { success: false, error };
   }
 
-  if (!tokens || tokens.length === 0) {
-    console.log(`No device tokens found for user ${userId}`);
+  const token = userData?.fcm_token;
+
+  if (!token) {
+    console.log(`No FCM token found for user ${userId}`);
     return { success: true, sent: 0 };
   }
+
+  const tokens = [{ token }]; // Wrap in array to keep existing loop logic
 
   const projectId = process.env.GOOGLE_PROJECT_ID;
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
@@ -85,10 +90,10 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
         const errBody = await res.text();
         console.error(`FCM send failed for token ${token.slice(0, 10)}...:`, errBody);
 
-        // Remove invalid tokens (NOT_FOUND or UNREGISTERED)
+        // Clear invalid token from 'User' table
         if (errBody.includes('NOT_FOUND') || errBody.includes('UNREGISTERED')) {
-          await supabaseAdmin.from('device_tokens').delete().eq('token', token);
-          console.log(`Removed stale device token: ${token.slice(0, 10)}...`);
+          await supabaseAdmin.from('User').update({ fcm_token: null }).eq('id', userId);
+          console.log(`Cleared stale FCM token for user: ${userId}`);
         }
 
         failed.push(token.slice(0, 10));
