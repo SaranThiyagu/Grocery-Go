@@ -59,7 +59,7 @@ class NotificationScreen extends StatelessWidget {
         border: Border.all(color: isNew ? Colors.blue.shade200 : Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: Offset(0, 2),
           )
@@ -72,7 +72,7 @@ class NotificationScreen extends StatelessWidget {
             padding: EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.blue.shade100,
-              shape: BoxCircle(),
+              shape: BoxShape.rectangle,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(Icons.shopping_bag, color: Colors.blue.shade800, size: 24),
@@ -112,7 +112,3 @@ class NotificationScreen extends StatelessWidget {
   }
 }
 
-// Fix for BoxCircle if it doesn't exist, using BoxShape.circle instead
-class BoxCircle extends BoxShape {
-  const BoxCircle() : super.circle;
-}

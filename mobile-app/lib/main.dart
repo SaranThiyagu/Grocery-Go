@@ -9,6 +9,7 @@ import 'core/utils/responsive_utils.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'core/services/notification_service.dart';
 
@@ -16,8 +17,8 @@ final supabase = Supabase.instance.client;
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase before using any Firebase services
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Handle background message if needed
 }
 
 void main() async {
@@ -25,6 +26,7 @@ void main() async {
 
   await dotenv.load(fileName: ".env");
 
+  // Pre-initialize Firebase before using messaging
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

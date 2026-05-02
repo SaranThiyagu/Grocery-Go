@@ -126,7 +126,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
                             ],
                           ),
                         ),
-                        Icon(Icons.shopping_basket, color: Colors.white.withValues(alpha: 0.5), size: 48)
+                        Icon(Icons.shopping_basket, color: Colors.white.withOpacity(0.5), size: 48)
                       ],
                     ),
                   ),
@@ -195,7 +195,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey.shade200),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
                         ),
                         child: Row(
                           children: [
@@ -279,7 +279,7 @@ class _DashboardMobileState extends State<DashboardMobile> {
         children: [
           Align(
             alignment: Alignment.topRight,
-            child: Icon(icon, color: color.withValues(alpha: 0.8), size: 28),
+            child: Icon(icon, color: color.withOpacity(0.8), size: 28),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
