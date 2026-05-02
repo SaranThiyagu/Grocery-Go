@@ -1,0 +1,590 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Search, Filter, Plus, Minus, ArrowLeft, User } from 'lucide-react'
+import { useCartStore } from '@/store/cart'
+import { useAppStore } from '@/lib/store'
+import { CartSidebar } from '@/components/cart/CartSidebar'
+import { CartButton } from '@/components/cart/CartButton'
+import { Button } from '@/components/ui/button'
+
+interface Product {
+    id: string
+    name: string
+    description: string
+    price: number
+    image: string
+    category: string
+}
+
+export default function OrderScreen() {
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<string[]>([])
+    const [searchTerm, setSearchTerm] = useState('')
+    const [selectedCategory, setSelectedCategory] = useState('')
+    const [showFilters, setShowFilters] = useState(false)
+    const [quantities, setQuantities] = useState<{ [key: string]: number }>({})
+    const { addItem } = useCartStore()
+    const { setScreen } = useAppStore()
+
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.description.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCategory = selectedCategory === '' || product.category === selectedCategory
+        return matchesSearch && matchesCategory
+    })
+
+    const updateQuantity = (productId: string, newQuantity: number) => {
+        if (newQuantity >= 1) {
+            setQuantities(prev => ({
+                ...prev,
+                [productId]: newQuantity
+            }))
+        }
+    }
+
+    const addToCart = async (product: Product) => {
+        const quantity = quantities[product.id] || 1
+        console.log('Adding to cart:', product.name, 'Quantity:', quantity)
+
+        await addItem({
+            id: product.id,
+            productId: product.id,
+            name: product.name,
+            description: product.description,
+            price: product.price,
+            image: product.image,
+            category: product.category,
+        }, quantity)
+
+        // Reset quantity after adding to cart
+        setQuantities(prev => ({
+            ...prev,
+            [product.id]: 1
+        }))
+    }
+
+    // Start with real data from database
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await fetch('/api/products')
+                if (response.ok) {
+                    const data = await response.json()
+                    console.log('🛒 Products API Response:', data)
+                    setProducts(data.products || data)
+                    setCategories(data.categories || [])
+
+                    // Initialize quantities
+                    const initialQuantities: { [key: string]: number } = {}
+                        ; (data.products || data).forEach((product: Product) => {
+                            initialQuantities[product.id] = 1
+                        })
+                    setQuantities(initialQuantities)
+                }
+            } catch (error) {
+                console.error('Error fetching products:', error)
+                // Fallback to mock data if API fails
+                const mockProducts = [
+                    {
+                        id: '1',
+                        name: 'Fresh Tomatoes',
+                        price: 40.00,
+                        description: 'Ripe and juicy tomatoes, perfect for curries and salads',
+                        image: 'https://images.unsplash.com/photo-1546470427-1d1d3d1d7?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '2',
+                        name: 'Onions',
+                        price: 35.00,
+                        description: 'Fresh red onions, essential for Indian cooking',
+                        image: 'https://images.unsplash.com/photo-1528747247525-3d40b2445e?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '3',
+                        name: 'Potatoes',
+                        price: 30.00,
+                        description: 'Fresh potatoes, versatile for all Indian dishes',
+                        image: 'https://images.unsplash.com/photo-1518979132600-261b355a3b?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '4',
+                        name: 'Green Chilies',
+                        price: 25.00,
+                        description: 'Spicy green chilies for authentic Indian flavor',
+                        image: 'https://images.unsplash.com/photo-1587047739698-c7f1a0f1b6?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '5',
+                        name: 'Coriander Leaves',
+                        price: 15.00,
+                        description: 'Fresh coriander leaves for garnishing and flavor',
+                        image: 'https://images.unsplash.com/photo-1592830001224-c8c8c5b6e8?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '6',
+                        name: 'Cauliflower',
+                        price: 45.00,
+                        description: 'Fresh cauliflower heads, great for gravies',
+                        image: 'https://images.unsplash.com/photo-1599492299242-9d842ee5625?w=300&h=200&fit=crop',
+                        category: 'Vegetables'
+                    },
+                    {
+                        id: '7',
+                        name: 'Mangoes',
+                        price: 120.00,
+                        description: 'Sweet and juicy Alphonso mangoes, king of fruits',
+                        image: 'https://images.unsplash.com/photo-15532797639-cf84fade48b6?w=300&h=200&fit=crop',
+                        category: 'Fruits'
+                    },
+                    {
+                        id: '8',
+                        name: 'Bananas',
+                        price: 40.00,
+                        description: 'Fresh ripe bananas, rich in potassium',
+                        image: 'https://images.unsplash.com/photo-1566398346732-9c4724e3f4?w=300&h=200&fit=crop',
+                        category: 'Fruits'
+                    },
+                    {
+                        id: '9',
+                        name: 'Apples',
+                        price: 80.00,
+                        description: 'Crisp and sweet apples, perfect for snacks',
+                        image: 'https://images.unsplash.com/photo-1560806887-65a192e2a3?w=300&h=200&fit=crop',
+                        category: 'Fruits'
+                    },
+                    {
+                        id: '10',
+                        name: 'Oranges',
+                        price: 60.00,
+                        description: 'Juicy oranges, rich in Vitamin C',
+                        image: 'https://images.unsplash.com/photo-1547514341-0857d5a176e?w=300&h=200&fit=crop',
+                        category: 'Fruits'
+                    },
+                    {
+                        id: '11',
+                        name: 'Pomegranate',
+                        price: 100.00,
+                        description: 'Fresh pomegranates, full of antioxidants',
+                        image: 'https://images.unsplash.com/photo-1577234290641-9a9c4e0f1d?w=300&h=200&fit=crop',
+                        category: 'Fruits'
+                    },
+                    {
+                        id: '12',
+                        name: 'Basmati Rice',
+                        price: 150.00,
+                        description: 'Premium long-grain Basmati rice, aged for 2 years',
+                        image: '/products/rice.jpg',
+                        category: 'Grains'
+                    },
+                    {
+                        id: '13',
+                        name: 'Toor Dal',
+                        price: 80.00,
+                        description: 'Split pigeon peas, perfect for dal makhani',
+                        image: 'https://images.unsplash.com/photo-1596531493673-8c4e6d7c5?w=300&h=200&fit=crop',
+                        category: 'Pulses'
+                    },
+                    {
+                        id: '14',
+                        name: 'Moong Dal',
+                        price: 90.00,
+                        description: 'Green gram dal, light and nutritious',
+                        image: 'https://images.unsplash.com/photo-15253767983-6028a746c4?w=300&h=200&fit=crop',
+                        category: 'Pulses'
+                    },
+                    {
+                        id: '15',
+                        name: 'Chana Dal',
+                        price: 70.00,
+                        description: 'Bengal gram dal, rich in protein',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Pulses'
+                    },
+                    {
+                        id: '16',
+                        name: 'Whole Wheat Flour',
+                        price: 45.00,
+                        description: 'Freshly ground whole wheat flour for chapatis',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Grains'
+                    },
+                    {
+                        id: '17',
+                        name: 'Turmeric Powder',
+                        price: 35.00,
+                        description: 'Pure turmeric powder, essential for Indian cooking',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Spices'
+                    },
+                    {
+                        id: '18',
+                        name: 'Red Chili Powder',
+                        price: 40.00,
+                        description: 'Hot and spicy red chili powder',
+                        image: 'https://images.unsplash.com/photo-1596531493673-8c4e6d7c5?w=300&h=200&fit=crop',
+                        category: 'Spices'
+                    },
+                    {
+                        id: '19',
+                        name: 'Cumin Seeds',
+                        price: 55.00,
+                        description: 'Aromatic cumin seeds, essential for curries',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Spices'
+                    },
+                    {
+                        id: '20',
+                        name: 'Coriander Powder',
+                        price: 30.00,
+                        description: 'Fresh coriander powder for authentic flavor',
+                        image: 'https://images.unsplash.com/photo-1592830001224-c8c8c5b6e8?w=300&h=200&fit=crop',
+                        category: 'Spices'
+                    },
+                    {
+                        id: '21',
+                        name: 'Garam Masala',
+                        price: 75.00,
+                        description: 'Traditional Indian garam masala blend',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Spices'
+                    },
+                    {
+                        id: '22',
+                        name: 'Fresh Milk',
+                        price: 55.00,
+                        description: 'Pure and fresh cow milk, 1 liter pack',
+                        image: '/products/milk.jpg',
+                        category: 'Dairy'
+                    },
+                    {
+                        id: '23',
+                        name: 'Paneer',
+                        price: 80.00,
+                        description: 'Fresh homemade paneer, 500g pack',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Dairy'
+                    },
+                    {
+                        id: '24',
+                        name: 'Curd (Dahi)',
+                        price: 35.00,
+                        description: 'Fresh homemade curd, 400g pack',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Dairy'
+                    },
+                    {
+                        id: '25',
+                        name: 'Butter',
+                        price: 45.00,
+                        description: 'Pure unsalted butter, 250g pack',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Dairy'
+                    },
+                    {
+                        id: '26',
+                        name: 'Ghee',
+                        price: 250.00,
+                        description: 'Pure desi ghee, traditional clarified butter',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Dairy'
+                    },
+                    {
+                        id: '27',
+                        name: 'Fresh Chapatis',
+                        price: 25.00,
+                        description: 'Soft and fresh chapatis, pack of 10',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Bakery'
+                    },
+                    {
+                        id: '28',
+                        name: 'Parathas',
+                        price: 60.00,
+                        description: 'Flaky parathas with stuffing, pack of 5',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Bakery'
+                    },
+                    {
+                        id: '29',
+                        name: 'Fresh Bread',
+                        price: 35.00,
+                        description: 'Soft white bread, perfect for sandwiches',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Bakery'
+                    },
+                    {
+                        id: '30',
+                        name: 'Mustard Oil',
+                        price: 120.00,
+                        description: 'Pure mustard oil, 1 liter bottle',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Oils'
+                    },
+                    {
+                        id: '31',
+                        name: 'Refined Oil',
+                        price: 100.00,
+                        description: 'Refined sunflower oil, 1 liter bottle',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Oils'
+                    },
+                    {
+                        id: '32',
+                        name: 'Coconut Oil',
+                        price: 85.00,
+                        description: 'Pure coconut oil, 500ml bottle',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Oils'
+                    },
+                    {
+                        id: '33',
+                        name: 'Samosas',
+                        price: 80.00,
+                        description: 'Crispy samosas, pack of 10 pieces',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Snacks'
+                    },
+                    {
+                        id: '34',
+                        name: 'Pakoras',
+                        price: 60.00,
+                        description: 'Crispy onion pakoras, pack of 8 pieces',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Snacks'
+                    },
+                    {
+                        id: '35',
+                        name: 'Namkeen Mixture',
+                        price: 45.00,
+                        description: 'Traditional namkeen mixture, 200g pack',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Snacks'
+                    },
+                    {
+                        id: '36',
+                        name: 'Bhujia',
+                        price: 40.00,
+                        description: 'Crispy bhujia sev, 200g pack',
+                        image: 'https://images.unsplash.com/photo-1586201375761-832e0c99f3?w=300&h=200&fit=crop',
+                        category: 'Snacks'
+                    },
+                    {
+                        id: '37',
+                        name: 'Tea Powder',
+                        price: 80.00,
+                        description: 'Strong Indian tea powder, 250g pack',
+                        image: 'https://images.unsplash.com/photo-1576091160553-3a9395c0c7?w=300&h=200&fit=crop',
+                        category: 'Beverages'
+                    },
+                    {
+                        id: '38',
+                        name: 'Coffee Powder',
+                        price: 120.00,
+                        description: 'Premium filter coffee powder, 100g pack',
+                        image: 'https://images.unsplash.com/photo-1586091160553-3a9395c0c7?w=300&h=200&fit=crop',
+                        category: 'Beverages'
+                    },
+                    {
+                        id: '39',
+                        name: 'Fresh Juices',
+                        price: 45.00,
+                        description: 'Mixed fruit juice pack, 1 liter',
+                        image: 'https://images.unsplash.com/photo-1600271881674-5290a38b9f?w=300&h=200&fit=crop',
+                        category: 'Beverages'
+                    },
+                    {
+                        id: '40',
+                        name: 'Dishwash Liquid',
+                        description: 'Lemon dishwash liquid, 1 liter bottle',
+                        price: 35.00,
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Household'
+                    },
+                    {
+                        id: '41',
+                        name: 'Laundry Detergent',
+                        price: 120.00,
+                        description: 'Washing detergent powder, 2kg pack',
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Household'
+                    },
+                    {
+                        id: '42',
+                        name: 'Floor Cleaner',
+                        description: 'Phenyl floor cleaner, 500ml bottle',
+                        price: 40.00,
+                        image: 'https://images.unsplash.com/photo-157717478439-7589d2c12f0?w=300&h=200&fit=crop',
+                        category: 'Household'
+                    }
+                ]
+                setProducts(mockProducts)
+
+                const initialQuantities: { [key: string]: number } = {}
+                mockProducts.forEach(product => {
+                    initialQuantities[product.id] = 1
+                })
+                setQuantities(initialQuantities)
+            }
+        }
+
+        // Delay API call to ensure smooth initial load
+        setTimeout(fetchProducts, 1000)
+    }, [setProducts])
+
+    const categoryList = [
+        { id: '1', name: 'Vegetables', description: 'Fresh vegetables' },
+        { id: '2', name: 'Fruits', description: 'Fresh fruits' },
+        { id: '3', name: 'Dairy', description: 'Dairy products' },
+        { id: '4', name: 'Grains', description: 'Grains and pulses' },
+        { id: '5', name: 'Spices', description: 'Indian spices' },
+        { id: '6', name: 'Snacks', description: 'Indian snacks' },
+        { id: '7', name: 'Beverages', description: 'Tea, coffee, juices' },
+        { id: '8', name: 'Household', description: 'Household items' }
+    ]
+
+    return (
+        <div className= "min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4" >
+        <div className="max-w-7xl mx-auto" >
+            <div className="bg-white rounded-2xl shadow-xl p-6 mb-6" >
+                <div className="flex items-center justify-between" >
+                    <div className="flex items-center space-x-4" >
+                        <Button
+                variant="outline"
+    size = "icon"
+    onClick = {() => setScreen('dashboard')
+}
+className = "bg-blue-50 border-blue-200 hover:bg-blue-100"
+    >
+    <ArrowLeft className="h-5 w-5 text-blue-700" />
+        </Button>
+        < div >
+        <h1 className="text-4xl font-bold text-blue-800 mb-2" >🛒 Indian Grocery Store </h1>
+            < p className = "text-gray-600" > Fresh vegetables, fruits, dairy, grains, spices, snacks, beverages, and household items </p>
+                </div>
+                </div>
+                < div className = "flex items-center space-x-2" >
+                    <CartButton />
+                    < Button
+variant = "outline"
+size = "icon"
+onClick = {() => setScreen('profile')}
+className = "bg-blue-50 border-blue-200 hover:bg-blue-100"
+    >
+    <User className="h-5 w-5 text-blue-700" />
+        </Button>
+        </div>
+        </div>
+        </div>
+
+        < div className = "bg-white rounded-2xl shadow-xl p-6 mb-6" >
+            <div className="flex items-center space-x-4 mb-6" >
+                <div className="flex-1" >
+                    <div className="relative" >
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size = { 20} />
+                            <input
+                  type="text"
+placeholder = "Search for products..."
+className = "w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+value = { searchTerm }
+onChange = {(e) => setSearchTerm(e.target.value)}
+                />
+    </div>
+    </div>
+    < button
+onClick = {() => setShowFilters(!showFilters)}
+className = "p-3 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors"
+    >
+    <Filter size={ 20 } />
+        </button>
+        </div>
+
+{
+    showFilters && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl" >
+            <h3 className="font-semibold text-gray-700 mb-3" > Filter by category </h3>
+                < div className = "flex flex-wrap gap-2" >
+                {
+                    categoryList.map(category => (
+                        <button
+                    key= { category.id }
+                    onClick = {() => setSelectedCategory(selectedCategory === category.name ? '' : category.name)}
+    className = {`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedCategory === category.name
+        ? 'bg-blue-600 text-white'
+        : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`
+}
+                  >
+    { category.name }
+    </button>
+                ))}
+</div>
+    </div>
+          )}
+</div>
+
+    < div className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" >
+    {
+        filteredProducts.map(product => (
+            <div key= { product.id } className = "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" >
+            <div className="h-48 bg-gray-200 relative" >
+        <img
+                  src={ product.image }
+                  alt = { product.name }
+                  className = "w-full h-full object-cover"
+            />
+            <span className="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded-full text-xs font-medium" >
+            { product.category }
+            </span>
+            </div>
+        < div className = "p-4" >
+        <h3 className="font-semibold text-lg text-gray-800 mb-1" > { product.name } </h3>
+        < p className = "text-gray-600 text-sm mb-3" > { product.description } </p>
+        < div className = "flex items-center" >
+        <span className="text-2xl font-bold text-blue-600" >₹{ product.price.toFixed(2) } </span>
+        </div>
+        < div className = "flex items-center space-x-2" >
+        <button
+                    onClick={() => updateQuantity(product.id, quantities[product.id] - 1)}
+className = "p-1 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+    >
+    <Minus size={ 16 } />
+        </button>
+        < span className = "w-12 text-center font-medium" > { quantities[product.id]} </span>
+            < button
+onClick = {() => updateQuantity(product.id, quantities[product.id] + 1)}
+className = "p-1 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+    >
+    <Plus size={ 16 } />
+        </button>
+        < button
+onClick = {() => addToCart(product)}
+className = "flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+    >
+    Add to Cart
+        </button>
+        </div>
+        </div>
+        </div>
+          ))}
+</div>
+
+{
+    filteredProducts.length === 0 && (
+        <div className="text-center py-12" >
+            <div className="text-6xl mb-4" >🔍</div>
+                < h3 className = "text-xl font-semibold text-gray-700 mb-2" > No products found </h3>
+                    < p className = "text-gray-500" > Try adjusting your search or filters </p>
+                        </div>
+        )
+}
+</div>
+    < CartSidebar />
+    </div>
+  )
+}
