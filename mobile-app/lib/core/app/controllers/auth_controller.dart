@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:loginapp/core/app/controllers/global_controller.dart';
 import 'package:loginapp/core/app/controllers/local_storage_controller.dart' as app_storage;
 import 'package:loginapp/core/utils/const.dart';
+import 'package:loginapp/core/services/notification_service.dart';
 
 enum AuthState { authenticated, unauthenticated, loading }
 
@@ -92,6 +93,9 @@ class AuthController extends GetxController {
       await app_storage.LocalStorage.storeData(Const.email, user.email ?? "");
       await app_storage.LocalStorage.storeData(Const.picture, user.userMetadata?['avatar_url'] ?? "");
       await app_storage.LocalStorage.storeData(Const.mobile, user.phone ?? "");
+      
+      // Update FCM token
+      await NotificationService.instance.updateTokenInSupabase();
       
       await Get.find<GlobalController>().loadData();
     } catch (e) {

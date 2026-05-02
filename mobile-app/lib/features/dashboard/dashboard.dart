@@ -48,6 +48,12 @@ class _DashboardMobileState extends State<DashboardMobile> {
         iconTheme: IconThemeData(color: ColorStyles.whiteColor),
         actions: [
           IconButton(
+            icon: Icon(Icons.notifications_none),
+            onPressed: () {
+              Get.toNamed(AppRoutes.notifications);
+            },
+          ),
+          IconButton(
             icon: Icon(Icons.person),
             onPressed: () {
               Get.toNamed(AppRoutes.profile);

@@ -4,6 +4,7 @@ import 'package:loginapp/features/cart/cart_screen.dart';
 import 'package:loginapp/features/dashboard/dashboard.dart';
 import 'package:loginapp/features/order/order_screen.dart';
 import 'package:loginapp/features/profile/profile_screen.dart';
+import 'package:loginapp/features/notification/notification_screen.dart';
 
 import 'app_routes.dart';
 
@@ -36,6 +37,12 @@ class AppPages {
     GetPage(
       name: AppRoutes.profile,
       page: () => const ProfileScreen(),
+      transition: Transition.rightToLeft,
+      transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: AppRoutes.notifications,
+      page: () => const NotificationScreen(),
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
     ),
