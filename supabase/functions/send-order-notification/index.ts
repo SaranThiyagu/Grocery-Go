@@ -25,9 +25,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 1. Get FCM token for this user from the 'User' table
+    // 1. Get FCM token for this user from the 'customers' table
     const { data: userData, error: userError } = await supabase
-      .from('User')
+      .from('customers')
       .select('fcm_token')
       .eq('id', userId)
       .single()

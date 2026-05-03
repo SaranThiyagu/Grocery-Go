@@ -141,8 +141,10 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [sendingNotification, setSendingNotification] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     fetchOrder();
   }, [orderId]);
 
@@ -552,8 +554,8 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                 </span>
               )}
             </div>
-            <p className="text-[13px] text-slate-400 mt-0.5">
-              {formatDate(order.createdAt)} at {formatTime(order.createdAt)}
+            <p className="text-[13px] text-slate-400 mt-0.5" suppressHydrationWarning>
+              {mounted ? `${formatDate(order.createdAt)} at ${formatTime(order.createdAt)}` : 'Loading date...'}
             </p>
           </div>
           <Button
@@ -705,10 +707,11 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                     </label>
                     <input
                       type="date"
-                      min={todayDateInputValue()}
+                      min={mounted ? todayDateInputValue() : undefined}
                       value={deliveryDate}
                       onChange={(e) => setDeliveryDate(e.target.value)}
                       className="w-full h-11 text-[13px] px-3.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-400 transition-shadow shadow-sm"
+                      suppressHydrationWarning
                     />
                   </div>
 

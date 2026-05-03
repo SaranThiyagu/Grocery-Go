@@ -15,14 +15,10 @@ export async function POST(
     const body = await request.json();
     const { userId } = body;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-    }
-
     // 1. Fetch order details to get order_no and other info
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .select('id, status, delivery_date, delivery_slot')
+      .select('id, status, delivery_date, delivery_slot, user_id, customer_id')
       .eq('id', orderId)
       .single();
 
@@ -30,12 +26,19 @@ export async function POST(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    const actualUserId = userId || order.customer_id || order.user_id;
+
+    if (!actualUserId) {
+      console.log(`No user associated with order ${orderId}, skipping notification.`);
+      return NextResponse.json({ success: true, sent: 0, message: 'No user to notify' });
+    }
+
     // 2. Fetch the specific customer's FCM token from 'User' table
     // (This is already handled inside sendPushNotification in @/lib/fcm)
     
     // 3. Send notification
     const orderRef = `#${order.id}`;
-    const result = await sendPushNotification(userId, {
+    const result = await sendPushNotification(actualUserId, {
       title: 'Order Confirmed ✅',
       body: `Your order ${orderRef} is confirmed. Delivery: ${order.delivery_date || ''}, ${order.delivery_slot || ''}.`,
       data: {
