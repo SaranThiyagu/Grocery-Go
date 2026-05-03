@@ -17,6 +17,8 @@ interface PushPayload {
  * Set env vars: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_PROJECT_ID
  */
 export async function sendPushNotification(userId: string, payload: PushPayload) {
+  let token: string | null = null;
+
   // Try customers table
   const { data: customerData, error: customerError } = await supabaseAdmin
     .from('customers')
