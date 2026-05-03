@@ -54,8 +54,11 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to send notification' }, { status: 500 });
     }
 
-  } catch (error) {
-    console.error('Error in notify route:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Notification API Error Details:', error);
+    return NextResponse.json(
+      { error: `Notification System Error: ${error.message || 'Unknown error'}` },
+      { status: 500 }
+    );
   }
 }

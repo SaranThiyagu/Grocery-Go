@@ -60,7 +60,7 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
             priority: 'high' as const,
             notification: {
               sound: 'default',
-              channel_id: 'orders',
+              channel_id: 'high_importance_channel',
             },
           },
           apns: {
