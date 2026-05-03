@@ -17,19 +17,31 @@ interface PushPayload {
  * Set env vars: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_PROJECT_ID
  */
 export async function sendPushNotification(userId: string, payload: PushPayload) {
-  // 1. Get FCM token for this user from the 'User' table
-  const { data: userData, error } = await supabaseAdmin
-    .from('User')
+  // 1. Get FCM token for this user.
+  // The mobile app stores the token in the 'customers' table.
+  let token: string | null | undefined = null;
+
+  // Try customers table first
+  const { data: customerData, error: customerError } = await supabaseAdmin
+    .from('customers')
     .select('fcm_token')
     .eq('id', userId)
     .single();
 
-  if (error) {
-    console.error('Failed to fetch customer FCM token:', error);
-    return { success: false, error };
+  if (!customerError && customerData?.fcm_token) {
+    token = customerData.fcm_token;
+  } else {
+    // Fallback to User table if needed
+    const { data: userData } = await supabaseAdmin
+      .from('User')
+      .select('fcm_token')
+      .eq('id', userId)
+      .single();
+    
+    if (userData?.fcm_token) {
+      token = userData.fcm_token;
+    }
   }
-
-  const token = userData?.fcm_token;
 
   if (!token) {
     console.log(`No FCM token found for user ${userId}`);
@@ -90,8 +102,10 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
         const errBody = await res.text();
         console.error(`FCM send failed for token ${token.slice(0, 10)}...:`, errBody);
 
-        // Clear invalid token from 'User' table
+        // Clear invalid token from 'customers' table
         if (errBody.includes('NOT_FOUND') || errBody.includes('UNREGISTERED')) {
+          await supabaseAdmin.from('customers').update({ fcm_token: null }).eq('id', userId);
+          // Also clear from User table just in case
           await supabaseAdmin.from('User').update({ fcm_token: null }).eq('id', userId);
           console.log(`Cleared stale FCM token for user: ${userId}`);
         }
