@@ -347,7 +347,7 @@ export default function ProductsPage() {
                                             <div className="flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => router.push(`/admin/products/${product.id}/edit`)}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
                                                     title="Edit product"
                                                 >
                                                     <Pencil className="h-3.5 w-3.5" />
@@ -355,7 +355,7 @@ export default function ProductsPage() {
                                                 <button
                                                     onClick={() => { setDeleteError(null); setDeleteTarget(product); }}
                                                     disabled={isDeleting === product.id}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                                                     title="Delete product"
                                                 >
                                                     {isDeleting === product.id ? (
@@ -375,46 +375,50 @@ export default function ProductsPage() {
                     {/* Mobile Cards */}
                     <div className="md:hidden divide-y divide-slate-100">
                         {paginatedProducts.map((product) => (
-                            <div key={product.id} className="px-5 py-4 flex items-center gap-3.5">
-                                <div className="h-12 w-12 relative rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60 flex-shrink-0">
-                                    {product.image ? (
-                                        <Image src={product.image} alt={product.name} fill className="object-cover" />
-                                    ) : (
-                                        <div className="h-full w-full flex items-center justify-center">
-                                            <Package className="h-5 w-5 text-slate-300" />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] font-medium text-slate-900 truncate">{product.name}</p>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        {product.category && (
-                                            <span className="text-[11px] text-indigo-600 font-medium">{product.category}</span>
-                                        )}
-                                        {!product.isActive && (
-                                            <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Inactive</span>
+                            <div key={product.id} className="flex items-center gap-0 pr-2">
+                                {/* Tap entire left area to edit — 44px+ touch target */}
+                                <button
+                                    onClick={() => router.push(`/admin/products/${product.id}/edit`)}
+                                    className="flex-1 min-w-0 flex items-center gap-3.5 px-5 py-4 text-left active:bg-slate-50 transition-colors"
+                                    aria-label={`Edit ${product.name}`}
+                                >
+                                    <div className="h-12 w-12 relative rounded-xl overflow-hidden bg-slate-100 border border-slate-200/60 flex-shrink-0">
+                                        {product.image ? (
+                                            <Image src={product.image} alt={product.name} fill className="object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center">
+                                                <Package className="h-5 w-5 text-slate-300" />
+                                            </div>
                                         )}
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    <button
-                                        onClick={() => router.push(`/admin/products/${product.id}/edit`)}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                                    >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                    </button>
-                                    <button
-                                        onClick={() => { setDeleteError(null); setDeleteTarget(product); }}
-                                        disabled={isDeleting === product.id}
-                                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-                                    >
-                                        {isDeleting === product.id ? (
-                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        ) : (
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        )}
-                                    </button>
-                                </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-medium text-slate-900 truncate">{product.name}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            {product.category && (
+                                                <span className="text-[11px] text-indigo-600 font-medium">{product.category}</span>
+                                            )}
+                                            {!product.isActive && (
+                                                <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-1.5 py-0.5 rounded">Inactive</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Chevron cue — standard mobile edit affordance */}
+                                    <Pencil className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+                                </button>
+
+                                {/* Delete — visually separated, 44px touch target, clearly destructive */}
+                                <button
+                                    onClick={() => { setDeleteError(null); setDeleteTarget(product); }}
+                                    disabled={isDeleting === product.id}
+                                    aria-label={`Delete ${product.name}`}
+                                    className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl text-red-400 bg-red-50 border border-red-100 active:bg-red-100 transition-colors disabled:opacity-40 ml-2"
+                                >
+                                    {isDeleting === product.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-red-400" />
+                                    ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                    )}
+                                </button>
                             </div>
                         ))}
                     </div>

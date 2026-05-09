@@ -12,7 +12,15 @@ export async function GET() {
         const { data: products, error } = await supabaseAdmin
             .from('products')
             .select(`
-                *,
+                id,
+                name,
+                description,
+                price,
+                image,
+                selling_mode,
+                is_active,
+                created_at,
+                updated_at,
                 categories ( id, name ),
                 brands ( id, name ),
                 product_sizes ( id, size_label, type )

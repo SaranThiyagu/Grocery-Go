@@ -340,82 +340,102 @@ export default function CategoriesPage() {
             </div>
           ) : (
             filtered.map(category => (
-              <div key={category.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors group">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[11px] font-bold text-emerald-600">
-                    {category.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  {editId === category.id ? (
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={e => { setEditName(e.target.value); setEditError(''); }}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleEdit(category.id);
-                            if (e.key === 'Escape') { setEditId(null); setEditError(''); }
-                          }}
-                          autoFocus
-                          className={`flex-1 h-8 px-3 text-[13px] border rounded-lg bg-white focus:outline-none focus:ring-2 ${
-                            editError
-                              ? 'border-red-300 focus:ring-red-500/30'
-                              : 'border-indigo-300 focus:ring-indigo-500/30'
-                          }`}
-                        />
-                        <button
-                          onClick={() => handleEdit(category.id)}
-                          disabled={saving || !editName.trim()}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer disabled:opacity-50"
-                        >
-                          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => { setEditId(null); setEditError(''); }}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+              <div key={category.id} className="flex items-center gap-0 pr-2 hover:bg-slate-50/50 transition-colors group">
+
+                {editId === category.id ? (
+                  /* ── Inline edit mode ── */
+                  <div className="flex-1 min-w-0 px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-emerald-600">
+                          {category.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      {editError && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-red-600">
-                          <AlertCircle className="h-3 w-3 flex-shrink-0" />
-                          {editError}
-                        </div>
-                      )}
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={e => { setEditName(e.target.value); setEditError(''); }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleEdit(category.id);
+                          if (e.key === 'Escape') { setEditId(null); setEditError(''); }
+                        }}
+                        autoFocus
+                        className={`flex-1 h-9 px-3 text-[13px] border rounded-lg bg-white focus:outline-none focus:ring-2 ${
+                          editError
+                            ? 'border-red-300 focus:ring-red-500/30'
+                            : 'border-indigo-300 focus:ring-indigo-500/30'
+                        }`}
+                      />
+                      {/* Save — solid green so it's unmistakably the commit action */}
+                      <button
+                        onClick={() => handleEdit(category.id)}
+                        disabled={saving || !editName.trim()}
+                        aria-label="Save category name"
+                        className="flex items-center justify-center w-10 h-9 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                      >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      </button>
+                      {/* Cancel — neutral grey pill */}
+                      <button
+                        onClick={() => { setEditId(null); setEditError(''); }}
+                        aria-label="Cancel edit"
+                        className="flex items-center justify-center w-9 h-9 text-slate-400 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg cursor-pointer transition-colors flex-shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                  ) : (
-                    <>
-                      <p className="text-[14px] font-medium text-slate-900">{category.name}</p>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <p className="text-[11px] text-slate-400">
-                          {category.productCount || 0} product{category.productCount !== 1 ? 's' : ''}
-                        </p>
-                        <span className="text-[11px] text-slate-300">·</span>
-                        <p className="text-[11px] text-slate-400">
-                          {category.sizeCount || 0} size{category.sizeCount !== 1 ? 's' : ''}
-                        </p>
+                    {editError && (
+                      <div className="flex items-center gap-1.5 mt-1.5 ml-11 text-[11px] text-red-600">
+                        <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                        {editError}
                       </div>
-                    </>
-                  )}
-                </div>
-                {editId !== category.id && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {/* Tap row → open inline edit */}
                     <button
                       onClick={() => { setEditId(category.id); setEditName(category.name); }}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                      aria-label={`Edit category ${category.name}`}
+                      className="flex-1 min-w-0 flex items-center gap-4 px-5 py-3.5 text-left active:bg-slate-50 transition-colors cursor-pointer"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-emerald-600">
+                          {category.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-slate-900 text-left">{category.name}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <p className="text-[11px] text-slate-400">
+                            {category.productCount || 0} product{category.productCount !== 1 ? 's' : ''}
+                          </p>
+                          <span className="text-[11px] text-slate-300">·</span>
+                          <p className="text-[11px] text-slate-400">
+                            {category.sizeCount || 0} size{category.sizeCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      </div>
                     </button>
+
+                    {/* Edit — contained indigo pill, 44px touch target */}
+                    <button
+                      onClick={() => { setEditId(category.id); setEditName(category.name); }}
+                      aria-label={`Edit category ${category.name}`}
+                      className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl text-indigo-500 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 active:bg-indigo-200 transition-colors cursor-pointer"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+
+                    {/* Delete — contained red pill, 44px touch target, spatially separated */}
                     <button
                       onClick={() => setDeleteTarget(category)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                      aria-label={`Delete category ${category.name}`}
+                      className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl text-red-400 bg-red-50 border border-red-100 hover:bg-red-100 active:bg-red-200 transition-colors ml-2 cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
             ))

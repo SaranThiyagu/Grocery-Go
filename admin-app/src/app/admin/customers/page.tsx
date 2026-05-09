@@ -404,7 +404,7 @@ export default function CustomersPage() {
                                                 <button
                                                     onClick={() => { setDeleteError(null); setDeleteTarget(customer); }}
                                                     disabled={isDeleting === customer.id}
-                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                                     title="Delete customer"
                                                 >
                                                     {isDeleting === customer.id ? (

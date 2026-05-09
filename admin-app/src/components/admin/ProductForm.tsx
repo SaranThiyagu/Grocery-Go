@@ -364,7 +364,7 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                     <button
                                         type="button"
                                         onClick={() => openQuickCreate('brand')}
-                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                                     >
                                         <Plus className="h-3 w-3" />
                                         New
@@ -416,7 +416,7 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                     <button
                                         type="button"
                                         onClick={() => openQuickCreate('category')}
-                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                        className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                                     >
                                         <Plus className="h-3 w-3" />
                                         New
@@ -537,7 +537,7 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                         <button
                                             type="button"
                                             onClick={() => openManageSizes('retail')}
-                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0"
+                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0 cursor-pointer"
                                         >
                                             <Plus className="h-3 w-3" />
                                             Manage Sizes
@@ -586,7 +586,7 @@ export default function ProductForm({ mode, initialData, onSubmitSuccess }: Prod
                                         <button
                                             type="button"
                                             onClick={() => openManageSizes('wholesale')}
-                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0"
+                                            className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex-shrink-0 cursor-pointer"
                                         >
                                             <Plus className="h-3 w-3" />
                                             Manage Sizes

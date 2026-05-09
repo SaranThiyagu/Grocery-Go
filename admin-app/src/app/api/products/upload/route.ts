@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import sharp from 'sharp';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/auth';
 
@@ -11,6 +12,10 @@ const ALLOWED_TYPES = [
   'image/png',
   'image/webp',
 ];
+
+// Output image constraints
+const OUTPUT_MAX_DIMENSION = 800; // px — largest side
+const OUTPUT_WEBP_QUALITY = 82;
 
 export async function POST(request: Request) {
   try {
@@ -38,17 +43,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate a safe unique filename
-    const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-    const filePath = `${crypto.randomUUID()}.${ext}`;
+    // Generate a safe unique filename — always .webp after compression
+    const filePath = `${crypto.randomUUID()}.webp`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
+    // Compress and convert to WebP — resize to fit within 800×800, preserve aspect ratio
+    let compressed: Buffer;
+    try {
+      compressed = await sharp(buffer)
+        .resize(OUTPUT_MAX_DIMENSION, OUTPUT_MAX_DIMENSION, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: OUTPUT_WEBP_QUALITY })
+        .toBuffer();
+    } catch (sharpError) {
+      console.error('Image processing error:', sharpError);
+      return NextResponse.json({ error: 'Failed to process image' }, { status: 422 });
+    }
+
     const { error: uploadError } = await supabaseAdmin.storage
       .from(BUCKET)
-      .upload(filePath, buffer, {
-        contentType: file.type,
+      .upload(filePath, compressed, {
+        contentType: 'image/webp',
         upsert: false,
       });
 

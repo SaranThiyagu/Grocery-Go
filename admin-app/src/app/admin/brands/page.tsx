@@ -365,16 +365,18 @@ export default function BrandsPage() {
           ) : (
             paginated.map(brand => (
               <div key={brand.id}>
-                <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors group">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[11px] font-bold text-indigo-600">
-                    {brand.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-0 pr-2 hover:bg-slate-50/50 transition-colors group">
+
+                  {/* ── Tap entire left section to open inline edit (44px+ touch target) ── */}
                   {editId === brand.id ? (
-                    <div>
+                    /* Inline edit mode — full-width input row */
+                    <div className="flex-1 min-w-0 px-5 py-3.5">
                       <div className="flex items-center gap-2">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[11px] font-bold text-indigo-600">
+                            {brand.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
                         <input
                           type="text"
                           value={editName}
@@ -384,7 +386,7 @@ export default function BrandsPage() {
                             if (e.key === 'Escape') { setEditId(null); setEditError(''); }
                           }}
                           autoFocus
-                          className={`flex-1 h-8 px-3 text-[13px] border rounded-lg bg-white focus:outline-none focus:ring-2 ${
+                          className={`flex-1 h-9 px-3 text-[13px] border rounded-lg bg-white focus:outline-none focus:ring-2 ${
                             editError
                               ? 'border-red-300 focus:ring-red-500/30'
                               : 'border-indigo-300 focus:ring-indigo-500/30'
@@ -393,19 +395,21 @@ export default function BrandsPage() {
                         <button
                           onClick={() => handleEdit(brand.id)}
                           disabled={saving || !editName.trim()}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer disabled:opacity-50"
+                          aria-label="Save brand name"
+                          className="flex items-center justify-center w-10 h-9 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white rounded-lg cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                         >
-                          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                         </button>
                         <button
                           onClick={() => { setEditId(null); setEditError(''); }}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          aria-label="Cancel edit"
+                          className="flex items-center justify-center w-9 h-9 text-slate-400 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-lg cursor-pointer transition-colors flex-shrink-0"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                       {editError && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-red-600">
+                        <div className="flex items-center gap-1.5 mt-1.5 ml-11 text-[11px] text-red-600">
                           <AlertCircle className="h-3 w-3 flex-shrink-0" />
                           {editError}
                         </div>
@@ -413,38 +417,55 @@ export default function BrandsPage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-[14px] font-medium text-slate-900">{brand.name}</p>
-                      {(brand.productCount || 0) > 0 ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setExpandedBrand(expandedBrand === brand.id ? null : brand.id); }}
-                          className="flex items-center gap-1 text-[11px] text-indigo-500 hover:text-indigo-700 font-medium cursor-pointer transition-colors mt-0.5"
-                        >
-                          <Package className="h-3 w-3" />
-                          {brand.productCount} product{brand.productCount !== 1 ? 's' : ''}
-                          <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${expandedBrand === brand.id ? 'rotate-180' : ''}`} />
-                        </button>
-                      ) : (
-                        <p className="text-[11px] text-slate-400">0 products</p>
-                      )}
+                      {/* Brand info — tap anywhere on this section to expand/collapse products */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if ((brand.productCount || 0) > 0) {
+                            setExpandedBrand(expandedBrand === brand.id ? null : brand.id);
+                          }
+                        }}
+                        aria-label={`${brand.name}, ${brand.productCount || 0} products`}
+                        className="flex-1 min-w-0 flex items-center gap-4 px-5 py-3.5 text-left active:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[11px] font-bold text-indigo-600">
+                            {brand.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-medium text-slate-900 text-left">{brand.name}</p>
+                          {(brand.productCount || 0) > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-indigo-500 font-medium mt-0.5">
+                              <Package className="h-3 w-3" />
+                              {brand.productCount} product{brand.productCount !== 1 ? 's' : ''}
+                              <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${expandedBrand === brand.id ? 'rotate-180' : ''}`} />
+                            </span>
+                          ) : (
+                            <p className="text-[11px] text-slate-400 text-left">0 products</p>
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Edit — contained button, 44px, indigo — parity with the delete button */}
+                      <button
+                        onClick={() => { setEditId(brand.id); setEditName(brand.name); }}
+                        aria-label={`Edit brand ${brand.name}`}
+                        className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl text-indigo-500 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 active:bg-indigo-200 transition-colors cursor-pointer"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+
+                      {/* Delete — contained button, 44px, red — spatially separated */}
+                      <button
+                        onClick={() => setDeleteTarget(brand)}
+                        aria-label={`Delete brand ${brand.name}`}
+                        className="flex-shrink-0 flex items-center justify-center w-11 h-11 rounded-xl text-red-400 bg-red-50 border border-red-100 hover:bg-red-100 active:bg-red-200 transition-colors ml-2 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </>
                   )}
-                </div>
-                {editId !== brand.id && (
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => { setEditId(brand.id); setEditName(brand.name); }}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(brand)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
                 </div>
 
                 {/* Expanded Product List */}

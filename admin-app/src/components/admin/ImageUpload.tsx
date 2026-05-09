@@ -18,6 +18,27 @@ export default function ImageUpload({ imageUrl, onImageUploaded, onImageRemoved 
 
     const displayImage = preview || imageUrl;
 
+    const validateAspectRatio = (file: File): Promise<boolean> =>
+        new Promise((resolve) => {
+            const url = URL.createObjectURL(file);
+            const img = new window.Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                const ratio = img.width / img.height;
+                if (ratio < 0.75 || ratio > 1.33) {
+                    const proceed = window.confirm(
+                        `This image has a ${img.width}×${img.height} aspect ratio. ` +
+                        'For the best display in the product grid, a square (1:1) image is recommended. Continue anyway?'
+                    );
+                    resolve(proceed);
+                } else {
+                    resolve(true);
+                }
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(true); };
+            img.src = url;
+        });
+
     const uploadFile = async (file: File) => {
         if (!file) return;
 
@@ -30,6 +51,9 @@ export default function ImageUpload({ imageUrl, onImageUploaded, onImageRemoved 
             alert('Image must be smaller than 5 MB');
             return;
         }
+
+        const ratioOk = await validateAspectRatio(file);
+        if (!ratioOk) return;
 
         setUploading(true);
         try {
@@ -86,16 +110,21 @@ export default function ImageUpload({ imageUrl, onImageUploaded, onImageRemoved 
                         <Image src={displayImage} alt="Product preview" fill className="object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-[12px] text-slate-500">
-                            Drag &amp; drop or{' '}
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-indigo-600 hover:text-indigo-700 font-medium underline"
-                            >
-                                browse
-                            </button>
-                        </p>
+                        <div>
+                            <p className="text-[12px] text-slate-500">
+                                Drag &amp; drop or{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-indigo-600 hover:text-indigo-700 font-medium underline cursor-pointer"
+                                >
+                                    browse
+                                </button>
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                                Recommended: 800×800 px square · JPEG, PNG or WebP · max 5 MB
+                            </p>
+                        </div>
                     </div>
                 </div>
                 <button
@@ -137,20 +166,27 @@ export default function ImageUpload({ imageUrl, onImageUploaded, onImageRemoved 
                     <ImageIcon className="h-6 w-6 text-slate-300" />
                 )}
             </div>
-            <div className="flex items-center gap-2">
-                {uploading ? (
-                    <Loader2 className="h-4 w-4 text-indigo-400 animate-spin" />
-                ) : (
-                    <Upload className="h-4 w-4 text-slate-400" />
-                )}
-                <span className="text-[13px] text-slate-500">
-                    {uploading ? 'Uploading...' : (
-                        <>
-                            Drag &amp; drop or{' '}
-                            <span className="text-indigo-600 font-medium underline">browse</span>
-                        </>
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    {uploading ? (
+                        <Loader2 className="h-4 w-4 text-indigo-400 animate-spin" />
+                    ) : (
+                        <Upload className="h-4 w-4 text-slate-400" />
                     )}
-                </span>
+                    <span className="text-[13px] text-slate-500">
+                        {uploading ? 'Uploading & optimising...' : (
+                            <>
+                                Drag &amp; drop or{' '}
+                                <span className="text-indigo-600 font-medium underline">browse</span>
+                            </>
+                        )}
+                    </span>
+                </div>
+                {!uploading && (
+                    <p className="text-[11px] text-slate-400 ml-6">
+                        Recommended: 800×800 px square · JPEG, PNG or WebP · max 5 MB
+                    </p>
+                )}
             </div>
             <input
                 ref={fileInputRef}

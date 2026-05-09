@@ -369,7 +369,7 @@ export default function OrderDrawer({ order, open, onOpenChange, onStatusUpdate,
               <Button
                 size="sm"
                 disabled={updating || !deliveryDate || !deliverySlot}
-                className="w-full h-9 text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 disabled:opacity-50 disabled:shadow-none"
+                className="w-full h-9 text-[13px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-500/25 disabled:opacity-50 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed"
                 onClick={() => handleStatusUpdate('Confirmed', { deliveryDate, deliverySlot })}
               >
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
