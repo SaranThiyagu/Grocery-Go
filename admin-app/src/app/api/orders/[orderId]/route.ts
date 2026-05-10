@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getAuthenticatedUser, unauthorizedResponse } from '@/lib/auth';
 import { isDeliverySlot } from '@/lib/delivery';
+import { sendPushNotification } from '@/lib/fcm';
 
 export const dynamic = 'force-dynamic';
 
@@ -347,10 +348,28 @@ export async function PATCH(
         const finalDeliveryDate: string | null = (updatedOrder as any).delivery_date || null;
         const finalDeliverySlot: string | null = (updatedOrder as any).delivery_slot || null;
 
+        let notificationTitle = '';
+        let notificationBody = '';
+
+        if (isStatusChange && status === 'Confirmed') {
+            notificationTitle = 'Order Confirmed ✅';
+            notificationBody = `Your order #${updatedOrder.order_no} is confirmed. Delivery: ${finalDeliveryDate}, ${finalDeliverySlot}.`;
+        } else if (isStatusChange && status === 'Delivered') {
+            notificationTitle = 'Order Delivered 📦';
+            notificationBody = `Great news! Your order #${updatedOrder.order_no} has been delivered. Enjoy your groceries!`;
+        } else if (isReschedule) {
+            notificationTitle = 'Delivery Rescheduled 🕒';
+            notificationBody = `Your delivery for order #${updatedOrder.order_no} is rescheduled to ${finalDeliveryDate} (${finalDeliverySlot}).`;
+        } else if (isStatusChange && status === 'Cancelled') {
+            notificationTitle = 'Order Cancelled ❌';
+            notificationBody = `Your order #${updatedOrder.order_no} has been cancelled. Reason: ${cancellationReason || 'Admin request'}`;
+        }
+
         // Email (status change → Confirmed/Delivered, or reschedule)
-        if (profile.email) {
+        if (profile.email && notificationTitle) {
             try {
                 const emailLib = await import('@/lib/email');
+
                 if (isStatusChange && status === 'Confirmed') {
                     await emailLib.sendOrderConfirmedEmail({
                         orderId: updatedOrder.id.toString(),
@@ -390,6 +409,35 @@ export async function PATCH(
                 }
             } catch (emailError) {
                 console.error('Failed to send email:', emailError);
+            }
+        }
+
+        // Send Push Notification and Store in DB
+        if (notificationTitle && (updatedOrder.customer_id || updatedOrder.user_id)) {
+            try {
+                const actualUserId = updatedOrder.customer_id || updatedOrder.user_id;
+                
+                // 1. Send FCM
+                await sendPushNotification(actualUserId, {
+                    title: notificationTitle,
+                    body: notificationBody,
+                    data: {
+                        type: 'order_status_update',
+                        orderId: updatedOrder.id.toString(),
+                        status: updatedOrder.status,
+                    },
+                });
+
+                // 2. Store in notifications table
+                await supabaseAdmin.from('notifications').insert({
+                    user_id: actualUserId,
+                    title: notificationTitle,
+                    body: notificationBody,
+                    order_id: updatedOrder.id.toString(),
+                    is_read: false,
+                });
+            } catch (notifyError) {
+                console.error('Failed to send push notification:', notifyError);
             }
         }
 
