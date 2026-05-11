@@ -17,21 +17,22 @@ interface PushPayload {
  * Set env vars: GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, GOOGLE_PROJECT_ID
  */
 export async function sendPushNotification(userId: string, payload: PushPayload) {
-  let token: string | null = null;
-
-  // Try customers table
-  const { data: customerData, error: customerError } = await supabaseAdmin
+  // 1. Get FCM token for this user from the 'customers' table
+  const { data: userData, error } = await supabaseAdmin
     .from('customers')
     .select('fcm_token')
     .eq('id', userId)
     .single();
 
-  if (!customerError && customerData?.fcm_token) {
-    token = customerData.fcm_token;
+  if (error) {
+    console.error('Failed to fetch customer FCM token:', error);
+    return { success: false, error };
   }
 
+  const token = userData?.fcm_token;
+
   if (!token) {
-    console.log(`No FCM token found in customers table for user ${userId}`);
+    console.log(`No FCM token found for user ${userId}`);
     return { success: true, sent: 0 };
   }
 
@@ -92,7 +93,7 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
         // Clear invalid token from 'customers' table
         if (errBody.includes('NOT_FOUND') || errBody.includes('UNREGISTERED')) {
           await supabaseAdmin.from('customers').update({ fcm_token: null }).eq('id', userId);
-          console.log(`Cleared stale FCM token in customers table for user: ${userId}`);
+          console.log(`Cleared stale FCM token for user: ${userId}`);
         }
 
         failed.push(token.slice(0, 10));
