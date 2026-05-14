@@ -318,6 +318,7 @@ export async function PATCH(
             .from('orders')
             .select(`
                 *,
+                customers ( id, full_name, email, fcm_token ),
                 order_items (
                     *,
                     products ( name, price )
@@ -334,8 +335,10 @@ export async function PATCH(
             );
         }
 
-        // Fetch user profile for email
+        // Get customer/profile info for notifications
+        const customer = (updatedOrder as any).customers;
         let profile: any = {};
+        
         if (updatedOrder.user_id) {
             const { data } = await supabaseAdmin
                 .from('profiles')
@@ -344,6 +347,9 @@ export async function PATCH(
                 .single();
             if (data) profile = data;
         }
+
+        const notificationEmail = profile.email || customer?.email;
+        const notificationName = profile.name || customer?.full_name || 'Customer';
 
         const finalDeliveryDate: string | null = (updatedOrder as any).delivery_date || null;
         const finalDeliverySlot: string | null = (updatedOrder as any).delivery_slot || null;
@@ -366,23 +372,23 @@ export async function PATCH(
         }
 
         // Email (status change → Confirmed/Delivered, or reschedule)
-        if (profile.email && notificationTitle) {
+        if (notificationEmail && notificationTitle) {
             try {
                 const emailLib = await import('@/lib/email');
 
                 if (isStatusChange && status === 'Confirmed') {
                     await emailLib.sendOrderConfirmedEmail({
                         orderId: updatedOrder.id.toString(),
-                        customerName: profile.name || 'Customer',
-                        customerEmail: profile.email,
+                        customerName: notificationName,
+                        customerEmail: notificationEmail,
                         deliveryDate: finalDeliveryDate,
                         deliverySlot: finalDeliverySlot,
                     });
                 } else if (isStatusChange && status === 'Delivered') {
                     await emailLib.sendOrderCompletionEmail({
                         orderId: updatedOrder.id.toString(),
-                        customerName: profile.name || 'Customer',
-                        customerEmail: profile.email,
+                        customerName: notificationName,
+                        customerEmail: notificationEmail,
                         totalAmount: updatedOrder.total_amount,
                         items: (updatedOrder.order_items || []).map((item: any) => ({
                             productName: item.products?.name || item.name,
@@ -393,8 +399,8 @@ export async function PATCH(
                 } else if (isReschedule) {
                     await emailLib.sendDeliveryRescheduledEmail({
                         orderId: updatedOrder.id.toString(),
-                        customerName: profile.name || 'Customer',
-                        customerEmail: profile.email,
+                        customerName: notificationName,
+                        customerEmail: notificationEmail,
                         deliveryDate: finalDeliveryDate,
                         deliverySlot: finalDeliverySlot,
                         reason: (rescheduleReason || '').trim(),
@@ -402,8 +408,8 @@ export async function PATCH(
                 } else if (isStatusChange && status === 'Cancelled') {
                     await emailLib.sendOrderCancelledEmail({
                         orderId: updatedOrder.id.toString(),
-                        customerName: profile.name || 'Customer',
-                        customerEmail: profile.email,
+                        customerName: notificationName,
+                        customerEmail: notificationEmail,
                         reason: (cancellationReason || '').trim(),
                     });
                 }
